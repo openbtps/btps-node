@@ -90,16 +90,20 @@ describe('finding keys', () => {
     return new BtpsServer(options);
   };
 
-  it('a server finds a sender key in DNS only, never asking a host', async () => {
-    const connect = vi.spyOn(tls, 'connect');
+  it("a server finds a sender key in DNS, then, when DNS has none, asks the sender's host as itself", async () => {
+    const resolveIdentity = vi
+      .spyOn(BtpsClient.prototype, 'resolveIdentity')
+      .mockResolvedValue({
+        response: { publicKey: sender.publicKey, selector: 'btps1' },
+      } as Awaited<ReturnType<BtpsClient['resolveIdentity']>>);
     const { isValid } = await serverWith()['verifySignature']({
       type: 'transporter',
       artifact: signedArtifact(),
     });
 
-    expect(isValid).toBe(false);
     expect(dns).toHaveBeenCalledWith('btps1._btps.identity.alice.vendor.example');
-    expect(connect).not.toHaveBeenCalled();
+    expect(resolveIdentity).toHaveBeenCalledWith('alice$vendor.example', 'host$client.example', undefined, 'btps1');
+    expect(isValid).toBe(true);
   });
 
   it("a server asks its keyResolver for the sender's signature key", async () => {
@@ -236,22 +240,51 @@ describe('the default key resolver', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('finds a signature key in DNS only, never asking a host', async () => {
-    const connect = vi.spyOn(tls, 'connect');
+  const hostAnswers = (answer: { publicKey?: string; selector?: string } | undefined) =>
+    vi
+      .spyOn(BtpsClient.prototype, 'resolveIdentity')
+      .mockResolvedValue({ response: answer } as Awaited<
+        ReturnType<BtpsClient['resolveIdentity']>
+      >);
+
+  it('finds a signature key in DNS first, and asks the host only for an identity DNS has no record of', async () => {
     dns.mockImplementation(async (name: string) => {
       if (name === 'btps1._btps.identity.alice.vendor.example')
         return [[`v=1.1.0; k=rsa; p=${pemToBase64(sender.publicKey)}`]];
       throw notFound();
     });
+    const resolveIdentity = hostAnswers({ publicKey: receiver.publicKey, selector: 'btps1' });
     const resolver = createDefaultKeyResolver({ from: 'pay$client.example' });
 
     expect(await resolver.resolvePublicKey('alice$vendor.example', 'btps1', 'verify')).toBe(
       sender.publicKey.trim(),
     );
+    expect(resolveIdentity).not.toHaveBeenCalled();
+    // A hosted address, as a provider's many are: its key from its host, in the answer its operator signed.
+    expect(await resolver.resolvePublicKey('bob$vendor.example', 'btps1', 'verify')).toBe(
+      receiver.publicKey,
+    );
+    expect(resolveIdentity).toHaveBeenCalledWith('bob$vendor.example', 'pay$client.example', undefined, 'btps1');
+  });
+
+  it("takes a host's signature key only at the selector the signature names", async () => {
+    hostAnswers({ publicKey: receiver.publicKey, selector: 'btps2' });
+    const resolver = createDefaultKeyResolver({ from: 'pay$client.example' });
+
     expect(
       await resolver.resolvePublicKey('bob$vendor.example', 'btps1', 'verify'),
     ).toBeUndefined();
-    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('never takes a DNS failure for "no record": the host is not asked', async () => {
+    dns.mockRejectedValue(Object.assign(new Error('queryTxt ETIMEOUT'), { code: 'ETIMEOUT' }));
+    const resolveIdentity = hostAnswers({ publicKey: receiver.publicKey, selector: 'btps1' });
+    const resolver = createDefaultKeyResolver({ from: 'pay$client.example' });
+
+    for (const use of ['verify', 'encrypt'] as const) {
+      await expect(resolver.resolvePublicKey('bob$vendor.example', 'btps1', use)).rejects.toThrow();
+    }
+    expect(resolveIdentity).not.toHaveBeenCalled();
   });
 
   it("asks the receiver's host for its key when DNS has none, as the sender, then closes", async () => {
@@ -281,12 +314,14 @@ describe('the default key resolver', () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  it("finds a receiver's key in DNS only without a sender to ask its host as", async () => {
+  it('finds a key in DNS only without an identity to ask its host as', async () => {
     const connect = vi.spyOn(tls, 'connect');
 
-    expect(
-      await createDefaultKeyResolver().resolvePublicKey('pay$client.example', 'btps1', 'encrypt'),
-    ).toBeUndefined();
+    for (const use of ['verify', 'encrypt'] as const) {
+      expect(
+        await createDefaultKeyResolver().resolvePublicKey('pay$client.example', 'btps1', use),
+      ).toBeUndefined();
+    }
     expect(connect).not.toHaveBeenCalled();
   });
 

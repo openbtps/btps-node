@@ -33,6 +33,7 @@ import {
   signatureKey,
   type BTPKeyChainCheck,
 } from '@core/delegation/verifyTransporterSignature.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { checkKeyChain, keyAt, keyChainFactsOf, type BTPKeyHolder } from './keyRotation.js';
 import {
   agreementContentSha256,
@@ -483,7 +484,11 @@ export const verifyEvidenceBundle = async (
     trustedTimestampRoots?: string[];
     anchors?: string[];
     operators?: Record<string, string>;
-    online?: BTPKeyChainCheck;
+    /**
+     * Online, each key is checked as its identity's now. Since 1.2, with `keyResolver`, a key not in DNS is found as
+     * a server finds it (its identity's host); without it, in DNS only.
+     */
+    online?: BTPKeyChainCheck & { keyResolver?: BtpsKeyResolver };
   } = {},
 ): Promise<BTPEvidenceFacts> => {
   const parsed = BtpEvidenceBundleSchema.safeParse(bundle);
@@ -576,7 +581,7 @@ export const verifyEvidenceBundle = async (
   const onlineChains = new Map<string, Awaited<ReturnType<typeof onlineKeyChain>>>();
   // A key is its identity's now: a key of its chain anchored online, or its DNS key.
   const confirmedOnline = async (
-    check: BTPKeyChainCheck,
+    check: BTPKeyChainCheck & { keyResolver?: BtpsKeyResolver },
     [identity, selector, fingerprint]: Signing,
   ): Promise<boolean> => {
     const id = identity.toLowerCase();
@@ -588,8 +593,8 @@ export const verifyEvidenceBundle = async (
       return keyAt(online.facts, { fingerprint: used }) !== undefined;
     if (online.status === 'none' && selector !== undefined) {
       // DNS that cannot be read confirms nothing; the bundle's facts still stand.
-      const inDns = await signatureKey(identity, selector).catch(() => undefined);
-      return fingerprintOf(inDns) === used;
+      const now = await signatureKey(identity, selector, check.keyResolver).catch(() => undefined);
+      return fingerprintOf(now) === used;
     }
     return false;
   };
