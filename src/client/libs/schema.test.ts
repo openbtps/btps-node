@@ -916,7 +916,7 @@ describe('BtpsAgent Schema Validation', () => {
             issuedAt: '2024-01-01T00:00:00.000Z',
             signature: {
               algorithmHash: 'sha256',
-              value: 'test-signature',
+              value: 'dGVzdC1zaWduYXR1cmU=',
               fingerprint: 'test-fingerprint',
             },
             encryption: null,
@@ -941,7 +941,7 @@ describe('BtpsAgent Schema Validation', () => {
           to: 'bob$example.com',
           signature: {
             algorithmHash: 'sha256',
-            value: 'test-signature',
+            value: 'dGVzdC1zaWduYXR1cmU=',
             fingerprint: 'test-fingerprint',
           },
           encryption: null,
@@ -1039,7 +1039,7 @@ describe('lifecycle events (BTPS_EVENT)', () => {
       type: 'BTPS_EVENT',
       from,
       to,
-      signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+      signature: { algorithmHash: 'sha256', value: 'c2ln', fingerprint: 'fp' },
       encryption: null,
       selector: 'btps1',
       relatesTo: 'doc-1',
@@ -1109,7 +1109,7 @@ describe('lifecycle events (BTPS_EVENT)', () => {
         type: 'BTPS_EVENT',
         from: payer,
         to: biller,
-        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+        signature: { algorithmHash: 'sha256', value: 'c2ln', fingerprint: 'fp' },
         encryption: null,
         selector: 'btps1',
         relatesTo: 'doc-1',
@@ -1128,7 +1128,7 @@ describe('lifecycle events (BTPS_EVENT)', () => {
       id: proposalId,
       from: payer,
       to: biller,
-      signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+      signature: { algorithmHash: 'sha256', value: 'c2ln', fingerprint: 'fp' },
       selector: 'btps1',
     };
     const encryption = {

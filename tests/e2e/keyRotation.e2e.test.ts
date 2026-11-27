@@ -30,7 +30,8 @@ import {
   BTP_ERROR_RESOLVE_PUBKEY,
 } from '../../src/core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
-import { agreementRef, signAgreement, signStatement } from '../../src/core/trust/agreements.js';
+import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
+import { cosign } from '../../src/core/trust/cosignatures.js';
 import { buildEvidenceBundle, verifyEvidenceBundle } from '../../src/core/trust/evidence.js';
 import {
   keyChainRecordHash,
@@ -290,22 +291,29 @@ describe('journey: keys rotate along a signed chain', () => {
         type: 'agreement',
         title: 'Service terms',
         id: 'AGR-1',
+        salt: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
         issuedAt: secondsAgo(600),
         body: { format: 'text', content: 'Twelve months of service.' },
         acceptance: { terms: [], signers: [{ address: JANE }], signingOrder: 'any' },
       },
       { originator: VENDOR, selector: 'btps1', pemFiles: k1 },
     );
-    const statement = await signStatement(
-      {
+    const said = {
         agreement: agreementRef(agreement, VENDOR),
         terms: [],
         signer: JANE,
-        decision: 'accepted',
+        decision: 'accepted' as const,
         signedAt: secondsAgo(500),
-      },
-      { selector: 'btps1', pemFiles: j1 },
-    );
+        artifactId: '00000000-0000-4000-8000-0000000000a1',
+      };
+    const statement = await cosign({
+      statement: said,
+      recipients: [
+        { identity: said.agreement.originator, publicKey: k1.publicKey },
+        { identity: JANE, publicKey: j1.publicKey },
+      ],
+      by: { selector: 'btps1', pemFiles: j1 },
+    });
 
     // Each signer's chain, as its host serves it now, with the operator's signed answer.
     const resolver = createDefaultKeyResolver({
@@ -323,7 +331,7 @@ describe('journey: keys rotate along a signed chain', () => {
     const keyOf = (identity: string) =>
       identity === vendorHost.operator ? vendorHost.operatorKeys.publicKey : undefined;
     const bundle = buildEvidenceBundle(
-      { originator: VENDOR, agreement, statements: [statement], keyChains },
+      { originator: VENDOR, agreement, cosignatures: [statement], statements: [said], keyChains },
       keyOf,
     );
 

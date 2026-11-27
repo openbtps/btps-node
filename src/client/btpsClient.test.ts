@@ -210,7 +210,7 @@ describe('BtpsClient', () => {
         type: 'standardEncrypt' as const,
       },
       selector: 'btps1',
-      signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
+      signature: { algorithmHash: 'sha256' as const, value: 'dGVzdC1zaWc=', fingerprint: 'test-fp' },
     };
 
     const sendOn = () => {

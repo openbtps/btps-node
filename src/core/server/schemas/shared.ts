@@ -20,7 +20,7 @@ export const identitySchema = z
  * same bytes, so a signature's text, and with it the hash of anything that holds the signature, could be changed
  * without breaking the signature.
  */
-export const canonicalBase64Schema = z
+export const BtpCanonicalBase64Schema = z
   .string()
   .min(4)
   .refine(
@@ -32,13 +32,13 @@ export const canonicalBase64Schema = z
 export const BtpSignatureSchema = z
   .object({
     algorithmHash: z.literal('sha256'),
-    value: canonicalBase64Schema,
+    value: BtpCanonicalBase64Schema,
     fingerprint: z.string(),
   })
   .strict();
 
 /** Since 1.2 (rc.4): an identity written in lower case, as one inside a signed agreement structure must be. */
-export const lowerIdentitySchema = identitySchema.refine(
+export const BtpLowerIdentitySchema = identitySchema.refine(
   (identity) => identity === identity.toLowerCase(),
   'an identity in a signed agreement structure is written in lower case',
 );

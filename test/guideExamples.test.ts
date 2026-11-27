@@ -46,7 +46,8 @@ import {
   BtpAgreementStatementSchema,
   BtpEvidenceBundleSchema,
   BtpIdentityResDocSchema,
-  BtpStatementRecordSchema,
+  BtpCosignatureSchema,
+  BtpCosignedStatementSchema,
 } from '../src/core/server/schemas/btpsDocsSchema.js';
 import { BtpControlArtifactSchema } from '../src/core/server/schemas/artifacts/controlSchema.js';
 import { BtpIdentityLookupRequestSchema } from '../src/core/server/schemas/artifacts/identityLookupSchema.js';
@@ -82,7 +83,9 @@ const schemaFor = (kind: string): z.ZodTypeAny => {
     identityDocument: BtpIdentityResDocSchema,
     deliveryFailure: BtpDeliveryFailureArtifactSchema,
     statement: BtpAgreementStatementSchema,
-    statementRecord: BtpStatementRecordSchema,
+    // Since rc.4: a statement travels as a cosignature; opened, it is `{ statement, padding }`.
+    cosignature: BtpCosignatureSchema,
+    cosignedStatement: BtpCosignedStatementSchema,
   };
   const schema = schemas[kind];
   if (!schema) throw new Error(`no schema for btps=${kind}`);

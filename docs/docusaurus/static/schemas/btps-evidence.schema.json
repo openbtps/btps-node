@@ -2,12 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://www.openbtps.org/schemas/btps-evidence.schema.json",
   "title": "BTPS agreement evidence bundle, format btps-evidence/1",
-  "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's statement record in the order it was taken, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: the content is bound by the originator's signature, not by any copy's encryption. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
+  "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's cosignature in the order it was taken, as it travelled (since 1.2.0-rc.4), each one's opened statement as the exact text its cosignature signed, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: each statement's text is bound to its cosignature by its SHA-256 (statementSha256), which the signer signed, and the content by the originator's signature. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "originator", "agreement", "statements", "keys"],
+  "required": [
+    "format",
+    "originator",
+    "agreement",
+    "cosignatures",
+    "statements",
+    "keys"
+  ],
   "properties": {
-    "format": { "const": "btps-evidence/1" },
+    "format": {
+      "const": "btps-evidence/1"
+    },
     "originator": {
       "description": "The address that sent the agreement and signed its content.",
       "$ref": "#/$defs/address"
@@ -15,31 +24,71 @@
     "agreement": {
       "description": "The opened agreement, attachments included, with originatorSignature.",
       "type": "object",
-      "required": ["type", "title", "id", "issuedAt", "body", "acceptance", "originatorSignature"],
+      "required": [
+        "type",
+        "title",
+        "id",
+        "issuedAt",
+        "body",
+        "acceptance",
+        "originatorSignature"
+      ],
       "properties": {
-        "type": { "const": "agreement" },
-        "title": { "type": "string", "maxLength": 200 },
-        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "issuedAt": { "type": "string", "format": "date-time" },
+        "type": {
+          "const": "agreement"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "body": {
           "type": "object",
-          "required": ["format", "content"],
+          "required": [
+            "format",
+            "content"
+          ],
           "properties": {
-            "format": { "enum": ["text", "markdown"] },
-            "content": { "type": "string", "maxLength": 100000 }
+            "format": {
+              "enum": [
+                "text",
+                "markdown"
+              ]
+            },
+            "content": {
+              "type": "string",
+              "maxLength": 100000
+            }
           }
         },
         "acceptance": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["terms", "signers", "signingOrder"],
+          "required": [
+            "terms",
+            "signers",
+            "signingOrder"
+          ],
           "properties": {
-            "by": { "type": "string", "format": "date-time" },
+            "by": {
+              "type": "string",
+              "format": "date-time"
+            },
             "terms": {
               "type": "array",
               "maxItems": 10,
               "uniqueItems": true,
-              "items": { "$ref": "#/$defs/sha256" }
+              "items": {
+                "$ref": "#/$defs/sha256"
+              }
             },
             "signers": {
               "type": "array",
@@ -48,29 +97,59 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["address"],
-                "properties": { "address": { "$ref": "#/$defs/address" } }
+                "required": [
+                  "address"
+                ],
+                "properties": {
+                  "address": {
+                    "$ref": "#/$defs/address"
+                  }
+                }
               }
             },
-            "signingOrder": { "enum": ["any", "sequential"] }
+            "signingOrder": {
+              "enum": [
+                "any",
+                "sequential"
+              ]
+            }
           }
         },
         "originatorSignature": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["selector", "signature"],
+          "required": [
+            "selector",
+            "signature"
+          ],
           "properties": {
-            "selector": { "type": "string", "minLength": 1 },
-            "signature": { "$ref": "#/$defs/signature" }
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signature": {
+              "$ref": "#/$defs/signature"
+            }
           }
         }
       }
     },
-    "statements": {
-      "description": "Each signer's statement record, in the order it was taken.",
+    "cosignatures": {
+      "description": "Since 1.2.0-rc.4: each signer's cosignature, in the order it was taken, as it travelled; a device's with the delegated artifact that first delivered it.",
       "type": "array",
       "maxItems": 20,
-      "items": { "$ref": "#/$defs/record" }
+      "items": {
+        "$ref": "#/$defs/cosignature"
+      }
+    },
+    "statements": {
+      "description": "Since 1.2.0-rc.4: each cosignature's opened statement, `{ statement, padding }` in its RFC 8785 form, as the exact text whose SHA-256 is that cosignature's statementSha256. statements[i] is cosignatures[i]'s.",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "keys": {
       "description": "The public key behind each signature: the originator's, each identity-signed statement's, each device's delegator and attestor, each key chain's operator, and the arrivals' builder. A device's own key is its delegation's agentPubKey.",
@@ -79,26 +158,50 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["identity", "selector", "publicKey", "fingerprint"],
+        "required": [
+          "identity",
+          "selector",
+          "publicKey",
+          "fingerprint"
+        ],
         "properties": {
-          "identity": { "$ref": "#/$defs/address" },
-          "selector": { "type": "string", "minLength": 1 },
-          "publicKey": { "type": "string", "minLength": 1 },
-          "fingerprint": { "type": "string", "minLength": 1 }
+          "identity": {
+            "$ref": "#/$defs/address"
+          },
+          "selector": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publicKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "timestamps": {
-      "description": "Optional RFC 3161 timestamp tokens, each over the SHA-256 of a statement record's RFC 8785 form: the DER TimeStampToken, base64.",
+      "description": "Optional RFC 3161 timestamp tokens, each over the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact (cosignatureSha256): the DER TimeStampToken, base64.",
       "type": "array",
       "maxItems": 20,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["statementSha256", "token"],
+        "required": [
+          "cosignatureSha256",
+          "token"
+        ],
         "properties": {
-          "statementSha256": { "$ref": "#/$defs/sha256" },
-          "token": { "type": "string", "minLength": 1 }
+          "cosignatureSha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -109,30 +212,56 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["identity", "records"],
+        "required": [
+          "identity",
+          "records"
+        ],
         "properties": {
-          "identity": { "$ref": "#/$defs/address" },
+          "identity": {
+            "$ref": "#/$defs/address"
+          },
           "records": {
             "type": "array",
             "maxItems": 100,
-            "items": { "$ref": "#/$defs/keyChainRecord" }
+            "items": {
+              "$ref": "#/$defs/keyChainRecord"
+            }
           },
           "operatorAnswer": {
             "type": "object",
-            "required": ["signedBy", "selector", "signature", "document"],
+            "required": [
+              "signedBy",
+              "selector",
+              "signature",
+              "document"
+            ],
             "properties": {
-              "signedBy": { "$ref": "#/$defs/address" },
-              "selector": { "type": "string", "minLength": 1 },
-              "signature": { "$ref": "#/$defs/signature" },
+              "signedBy": {
+                "$ref": "#/$defs/address"
+              },
+              "selector": {
+                "type": "string",
+                "minLength": 1
+              },
+              "signature": {
+                "$ref": "#/$defs/signature"
+              },
               "document": {
                 "type": "object",
-                "required": ["identity", "keyChain"],
+                "required": [
+                  "identity",
+                  "keyChain"
+                ],
                 "properties": {
-                  "identity": { "$ref": "#/$defs/address" },
+                  "identity": {
+                    "$ref": "#/$defs/address"
+                  },
                   "keyChain": {
                     "type": "array",
                     "maxItems": 100,
-                    "items": { "$ref": "#/$defs/keyChainRecord" }
+                    "items": {
+                      "$ref": "#/$defs/keyChainRecord"
+                    }
                   }
                 }
               }
@@ -142,19 +271,37 @@
       }
     },
     "arrivals": {
-      "description": "Since 1.2, optional: when each statement arrived, signed by the bundle's builder over the RFC 8785 form of {type: \"btps.arrival.v1\", statementSha256, arrivedAt, receivedBy, selector}.",
+      "description": "Since 1.2, optional: when each cosignature arrived, signed by the bundle's builder over the RFC 8785 form of {type: \"btps.arrival.v1\", cosignatureSha256, arrivedAt, receivedBy, selector}.",
       "type": "array",
       "maxItems": 20,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["statementSha256", "arrivedAt", "receivedBy", "selector", "signature"],
+        "required": [
+          "cosignatureSha256",
+          "arrivedAt",
+          "receivedBy",
+          "selector",
+          "signature"
+        ],
         "properties": {
-          "statementSha256": { "$ref": "#/$defs/sha256" },
-          "arrivedAt": { "type": "string", "format": "date-time" },
-          "receivedBy": { "$ref": "#/$defs/address" },
-          "selector": { "type": "string", "minLength": 1 },
-          "signature": { "$ref": "#/$defs/signature" }
+          "cosignatureSha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "arrivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receivedBy": {
+            "$ref": "#/$defs/address"
+          },
+          "selector": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signature": {
+            "$ref": "#/$defs/signature"
+          }
         }
       }
     }
@@ -165,98 +312,299 @@
       "type": "string",
       "pattern": "^[^$\\s]+\\$[^$\\s]+$"
     },
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "keyChainRecord": {
       "description": "A key rotation or expiry record, as the key rotation specification defines it. That it is signed by the keys it names, and that the records form one chain, is checked by a verifier, not here.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["signatures"],
+      "required": [
+        "signatures"
+      ],
       "properties": {
-        "rotation": { "type": "object" },
-        "expiry": { "type": "object" },
+        "rotation": {
+          "type": "object"
+        },
+        "expiry": {
+          "type": "object"
+        },
         "signatures": {
           "type": "array",
           "minItems": 1,
           "maxItems": 2,
           "items": {
             "type": "object",
-            "allOf": [{ "$ref": "#/$defs/signature" }],
-            "required": ["by"],
-            "properties": { "by": { "enum": ["from", "to", "current"] } }
+            "allOf": [
+              {
+                "$ref": "#/$defs/keyChainSignature"
+              }
+            ],
+            "required": [
+              "by"
+            ],
+            "properties": {
+              "by": {
+                "enum": [
+                  "from",
+                  "to",
+                  "current"
+                ]
+              }
+            }
           }
         },
-        "timestamp": { "type": "string", "minLength": 1 }
+        "timestamp": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "oneOf": [
-        { "properties": { "rotation": { "type": "object" } }, "required": ["rotation"] },
-        { "properties": { "expiry": { "type": "object" } }, "required": ["expiry"] }
+        {
+          "properties": {
+            "rotation": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "rotation"
+          ]
+        },
+        {
+          "properties": {
+            "expiry": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "expiry"
+          ]
+        }
       ]
     },
     "signature": {
       "type": "object",
-      "required": ["algorithmHash", "value", "fingerprint"],
+      "additionalProperties": false,
+      "required": [
+        "algorithmHash",
+        "value",
+        "fingerprint"
+      ],
       "properties": {
-        "algorithmHash": { "const": "sha256" },
-        "value": { "type": "string" },
-        "fingerprint": { "type": "string" }
+        "algorithmHash": {
+          "const": "sha256"
+        },
+        "value": {
+          "description": "Since 1.2.0-rc.4: base64 in its one canonical form.",
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          "minLength": 4
+        },
+        "fingerprint": {
+          "type": "string"
+        }
       }
     },
-    "record": {
-      "description": "A signed statement: by the signer's identity key at selector, or by a device, carrying the whole delegated artifact that delivered it.",
+    "cosignature": {
+      "description": "Since 1.2.0-rc.4: a signer's cosignature: its statement encrypted once to every recipient, then signed over its RFC 8785 form, ciphertext included. By the signer's identity key at selector, or by a device, carrying the delegated artifact that first delivered it (its id is artifactId).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["statement", "signature"],
+      "required": [
+        "ref",
+        "signer",
+        "artifactId",
+        "statementSha256",
+        "recipients",
+        "encryption",
+        "ciphertext",
+        "signature"
+      ],
       "properties": {
-        "statement": {
+        "ref": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["agreement", "terms", "signer", "decision", "signedAt"],
+          "required": [
+            "originator",
+            "id",
+            "contentSha256"
+          ],
           "properties": {
-            "agreement": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["originator", "id", "contentSha256"],
-              "properties": {
-                "originator": { "$ref": "#/$defs/address" },
-                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
-                "contentSha256": { "$ref": "#/$defs/sha256" }
-              }
+            "originator": {
+              "$ref": "#/$defs/address"
             },
-            "terms": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/sha256" } },
-            "signer": { "$ref": "#/$defs/address" },
-            "decision": { "enum": ["accepted", "declined"] },
-            "signedAt": { "type": "string", "format": "date-time" },
-            "previous": { "$ref": "#/$defs/sha256" }
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "contentSha256": {
+              "$ref": "#/$defs/sha256"
+            }
           }
         },
-        "signature": { "$ref": "#/$defs/signature" },
-        "selector": { "type": "string", "minLength": 1 },
+        "signer": {
+          "$ref": "#/$defs/address"
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        },
         "delegatedArtifact": {
           "type": "object",
-          "required": ["from", "signature", "delegation"],
+          "required": [
+            "id",
+            "from",
+            "signature",
+            "delegation"
+          ],
           "properties": {
-            "from": { "$ref": "#/$defs/address" },
-            "signature": { "$ref": "#/$defs/signature" },
+            "id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/$defs/address"
+            },
+            "signature": {
+              "$ref": "#/$defs/signature"
+            },
             "delegation": {
               "type": "object",
-              "required": ["agentPubKey", "signedBy", "signature", "selector"],
+              "required": [
+                "agentPubKey",
+                "signedBy",
+                "signature",
+                "selector"
+              ],
               "properties": {
-                "agentPubKey": { "type": "string" },
-                "signedBy": { "$ref": "#/$defs/address" },
-                "signature": { "$ref": "#/$defs/signature" },
-                "selector": { "type": "string" }
+                "agentPubKey": {
+                  "type": "string"
+                },
+                "signedBy": {
+                  "$ref": "#/$defs/address"
+                },
+                "signature": {
+                  "$ref": "#/$defs/signature"
+                },
+                "selector": {
+                  "type": "string"
+                }
               }
             }
           }
+        },
+        "artifactId": {
+          "type": "string"
+        },
+        "previous": {
+          "$ref": "#/$defs/sha256"
+        },
+        "statementSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "recipients": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 21,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "identity",
+              "fingerprint",
+              "wrappedKey"
+            ],
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/address"
+              },
+              "fingerprint": {
+                "type": "string",
+                "minLength": 1
+              },
+              "wrappedKey": {
+                "type": "string",
+                "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+                "minLength": 4
+              }
+            }
+          }
+        },
+        "encryption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "iv",
+            "authTag"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "aes-256-gcm"
+            },
+            "iv": {
+              "type": "string",
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "minLength": 4
+            },
+            "authTag": {
+              "type": "string",
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "minLength": 4
+            }
+          }
+        },
+        "ciphertext": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          "minLength": 4
+        },
+        "signature": {
+          "$ref": "#/$defs/signature"
         }
       },
-      "oneOf": [
-        { "properties": { "selector": { "type": "string" } }, "required": ["selector"] },
-        {
-          "properties": { "delegatedArtifact": { "type": "object" } },
-          "required": ["delegatedArtifact"]
+      "not": {
+        "properties": {
+          "selector": {},
+          "delegatedArtifact": {}
+        },
+        "required": [
+          "selector",
+          "delegatedArtifact"
+        ]
+      }
+    },
+    "keyChainSignature": {
+      "description": "A key chain record's signature: a signature, and which key gave it ('from', 'to' or 'current').",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by",
+        "algorithmHash",
+        "value",
+        "fingerprint"
+      ],
+      "properties": {
+        "by": {
+          "enum": [
+            "from",
+            "to",
+            "current"
+          ]
+        },
+        "algorithmHash": {
+          "const": "sha256"
+        },
+        "value": {
+          "description": "Since 1.2.0-rc.4: base64 in its one canonical form.",
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          "minLength": 4
+        },
+        "fingerprint": {
+          "type": "string"
         }
-      ]
+      }
     }
   }
 }

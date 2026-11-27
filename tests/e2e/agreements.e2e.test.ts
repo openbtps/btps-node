@@ -6,11 +6,15 @@
  */
 
 // Journey: an agreement, end to end. A bank sends a loan agreement to two
-// signers, in turn. Its own platform checks each answer's turn in flight
-// (agreementOrderCheck): an answer out of turn is refused, each in turn is
-// taken, and the bank tells both it is complete. Either party then builds the
+// signers, in turn. Each answers with a cosignature (rc.4): its statement
+// encrypted once to every party, then signed. The receiving server checks
+// every cosignature in flight, without decrypting, and refuses a forged one;
+// the bank's platform checks each answer's turn (agreementOrderCheck): an
+// answer out of turn is refused, each in turn is taken, and the bank tells
+// both it is complete, forwarding every cosignature unchanged, which each
+// signer opens to exactly what was signed. Either party then builds the
 // evidence bundle, which checks offline, from the command line too, and with
-// a trusted timestamp on a statement.
+// a trusted timestamp on a cosignature.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'child_process';
@@ -18,12 +22,8 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import {
-  agreementRef,
-  signAgreement,
-  signStatement,
-  statementRecordSha256,
-} from '../../src/core/trust/agreements.js';
+import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
+import { cosign, cosignatureSha256 } from '../../src/core/trust/cosignatures.js';
 import {
   buildEvidenceBundle,
   verifyEvidenceBundle,
@@ -32,7 +32,11 @@ import {
 import { timestampRequest, timestampTokenOf } from '../../src/core/trust/timestamps.js';
 import { agreementOrderCheck } from '../../src/server/libs/agreementOrderCheck.js';
 import { BTP_ERROR_AGREEMENT_ORDER } from '../../src/core/error/index.js';
-import type { BTPAgreementAnswers, BTPStatementRecord } from '../../src/core/trust/types.js';
+import type {
+  BTPAgreementAnswers,
+  BTPAgreementStatement,
+  BTPCosignature,
+} from '../../src/core/trust/types.js';
 import type { BTPTransporterArtifact } from '../../src/core/server/types.js';
 import type { MiddlewareDefinition } from '../../src/server/types.js';
 import {
@@ -64,7 +68,8 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
   let agreement: Awaited<ReturnType<typeof signAgreement>>;
   const copies = new Map<string, BTPTransporterArtifact>(); // copy id → the copy sent
   const answered: BTPAgreementAnswers['answered'] = [];
-  const records: BTPStatementRecord[] = [];
+  const cosignatures: BTPCosignature[] = [];
+  const statements: BTPAgreementStatement[] = [];
 
   beforeAll(async () => {
     bankHost = await startProvider('bank.test');
@@ -117,14 +122,15 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
     clientHost.stop();
   });
 
-  const answer = async (signer: User, previous?: string) => {
+  const answer = async (signer: User, previous?: string, signedBy: User = signer) => {
     const copy = [...copies.values()].find((sent) => sent.to === signer.identity)!;
     const viewed = new Date().toISOString();
-    const record = await signStatement(
-      {
+    const id = randomUUID();
+    const statement: BTPAgreementStatement = {
         agreement: agreementRef(agreement, bank.identity),
         terms: (agreement.acceptance as { terms: string[] }).terms,
         signer: signer.identity,
+        artifactId: id,
         decision: 'accepted',
         signedAt: new Date().toISOString(),
         ...(previous && { previous }),
@@ -138,10 +144,13 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
         viewedAt: viewed,
         viewedFrom: { ip: '203.0.113.7', device: { os: 'macOS', browser: 'Chrome' } },
         signedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
-      },
-      { selector: signer.selector, pemFiles: signer.keys },
-    );
-    const id = randomUUID();
+    };
+    // Encrypted once to the bank and every signer, then signed: by its signer's key, or, forged, by another's.
+    const cosignature = await cosign({
+      statement,
+      recipients: [bank, alice, sam].map((user) => ({ identity: user.identity, publicKey: user.keys.publicKey })),
+      by: { selector: signer.selector, pemFiles: signedBy.keys },
+    });
     const event = await artifactFrom(
       signer,
       bank.identity,
@@ -152,11 +161,10 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
         occurredAt: new Date().toISOString(),
         eventType: 'accepted',
         agreement: agreementRef(agreement, bank.identity),
-        statement: record,
       },
-      { extra: { id, relatesTo: copy.id } },
+      { extra: { id, relatesTo: copy.id, cosignatures: [cosignature] } },
     );
-    return { record, response: (await deliver(event)).response };
+    return { cosignature, statement, response: (await deliver(event)).response };
   };
 
   it('sends each signer its copy, under the send:agreement it granted', async () => {
@@ -176,6 +184,12 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
     }
   });
 
+  it("refuses a cosignature that is not its signer's, in flight, without opening anything", async () => {
+    const { response } = await answer(alice, undefined, sam);
+
+    expect(response?.status).toMatchObject({ ok: false });
+  });
+
   it('refuses an answer out of turn, in flight, without opening it', async () => {
     const { response } = await answer(sam);
 
@@ -189,21 +203,15 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
   it('takes each answer in its turn, the second naming the first', async () => {
     const first = await answer(alice);
     expect(first.response?.status).toMatchObject({ ok: true, code: 200 });
-    records.push(first.record);
-    answered.push({
-      signer: alice.identity,
-      decision: 'accepted',
-      sha256: statementRecordSha256(first.record),
-    });
+    cosignatures.push(first.cosignature);
+    statements.push(first.statement);
+    answered.push({ signer: alice.identity, decision: 'accepted', sha256: cosignatureSha256(first.cosignature) });
 
-    const second = await answer(sam, statementRecordSha256(first.record));
+    const second = await answer(sam, cosignatureSha256(first.cosignature));
     expect(second.response?.status).toMatchObject({ ok: true, code: 200 });
-    records.push(second.record);
-    answered.push({
-      signer: sam.identity,
-      decision: 'accepted',
-      sha256: statementRecordSha256(second.record),
-    });
+    cosignatures.push(second.cosignature);
+    statements.push(second.statement);
+    answered.push({ signer: sam.identity, decision: 'accepted', sha256: cosignatureSha256(second.cosignature) });
 
     // A signer who has answered is refused a second answer.
     expect((await answer(alice)).response?.status).toMatchObject({
@@ -212,7 +220,7 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
     });
   });
 
-  it('tells each signer the agreement is complete, with every statement', async () => {
+  it('tells each signer the agreement is complete, forwarding every cosignature, which each opens to what was signed', async () => {
     for (const signer of [alice, sam]) {
       const id = randomUUID();
       const complete = await artifactFrom(
@@ -225,17 +233,22 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
           occurredAt: new Date().toISOString(),
           eventType: 'agreement_complete',
           agreement: agreementRef(agreement, bank.identity),
-          statements: records,
         },
         {
           extra: {
             id,
             relatesTo: [...copies.keys()].find((k) => copies.get(k)?.to === signer.identity),
+            cosignatures,
           },
         },
       );
       clientHost.trustStore.remember(copies.get(complete.relatesTo!)!);
       expect((await deliver(complete)).response?.status).toMatchObject({ ok: true, code: 200 });
+
+      const arrived = clientHost.inbox.find((a) => a.id === complete.id)!;
+      const opened = await open(signer, arrived);
+      expect(opened.error).toBeUndefined();
+      expect(opened.cosigned).toEqual(statements);
     }
   });
 
@@ -246,7 +259,7 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
 
     beforeAll(() => {
       bundle = buildEvidenceBundle(
-        { originator: bank.identity, agreement, statements: records },
+        { originator: bank.identity, agreement, cosignatures, statements },
         keyOf,
       );
     });
@@ -263,6 +276,7 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
         expect(statement).toMatchObject({
           signatureValid: true,
           keyKind: 'identity',
+          statementMatches: true,
           agreementMatches: true,
           termsMatch: true,
           withinDeadline: true,
@@ -299,15 +313,15 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
       fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    it('reports a trusted timestamp on a statement, and leaves complete as it was', async () => {
+    it('reports a trusted timestamp on a cosignature, and leaves complete as it was', async () => {
       const authority = await startTimestampAuthority('Test TSA');
-      const [first] = records;
+      const [first] = cosignatures;
       const request = await timestampRequest(first!);
       expect(request.length).toBeGreaterThan(0);
-      const token = await timestampTokenOf(await authority.respond(statementRecordSha256(first!)));
+      const token = await timestampTokenOf(await authority.respond(cosignatureSha256(first!)));
       const stamped = {
         ...bundle,
-        timestamps: [{ statementSha256: statementRecordSha256(first!), token }],
+        timestamps: [{ cosignatureSha256: cosignatureSha256(first!), token }],
       };
 
       const facts = await verifyEvidenceBundle(stamped, {

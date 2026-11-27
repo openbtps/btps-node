@@ -25,7 +25,8 @@ import {
 } from '../../src/core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
 import { keyChainRecordHash, signKeyRotation } from '../../src/core/trust/keyRotation.js';
-import { agreementRef, signAgreement, signStatement } from '../../src/core/trust/agreements.js';
+import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
+import { cosign } from '../../src/core/trust/cosignatures.js';
 import { buildEvidenceBundle, verifyEvidenceBundle } from '../../src/core/trust/evidence.js';
 import type { BTPKeyChainRecord } from '../../src/core/trust/types.js';
 import type { BTPServerResponse, BTPTransporterArtifact } from '../../src/core/server/types.js';
@@ -772,22 +773,29 @@ describe('10. a forged authority in an evidence bundle', () => {
         type: 'agreement',
         title: 'Loan',
         id: 'AGR-1',
+        salt: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
         issuedAt: secondsAgo(200),
         body: { format: 'text', content: 'A loan.' },
         acceptance: { terms: [], signers: [{ address: jane.identity }], signingOrder: 'any' },
       },
       { originator: bank.identity, selector: 'btps1', pemFiles: bank.keys },
     );
-    const statement = await signStatement(
-      {
+    const said = {
         agreement: agreementRef(agreement, bank.identity),
         terms: [],
         signer: jane.identity,
-        decision: 'accepted',
+        decision: 'accepted' as const,
         signedAt: secondsAgo(120),
-      },
-      { selector: 'btps1', pemFiles: jane.keys },
-    );
+        artifactId: '00000000-0000-4000-8000-0000000000a1',
+      };
+    const statement = await cosign({
+      statement: said,
+      recipients: [
+        { identity: said.agreement.originator, publicKey: bank.keys.publicKey },
+        { identity: jane.identity, publicKey: jane.keys.publicKey },
+      ],
+      by: { selector: 'btps1', pemFiles: jane.keys },
+    });
     // Jane loses her key: only the new one signs its rotation, which her host serves.
     const next = newKeys();
     const lost = await signKeyRotation(
@@ -818,7 +826,7 @@ describe('10. a forged authority in an evidence bundle', () => {
         {
           originator: bank.identity,
           agreement,
-          statements: [statement],
+          cosignatures: [statement], statements: [said],
           keyChains: [{ identity: jane.identity, records: [lost], operatorAnswer: answer }],
         },
         (identity) =>

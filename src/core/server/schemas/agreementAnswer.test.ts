@@ -19,23 +19,13 @@ import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
 
 const SHA = 'a'.repeat(64);
 const agreement = { originator: 'loans$bank.example', id: 'AGR-1', contentSha256: SHA };
+// Since rc.4: its statement is not in it, but outside, as the artifact's cosignature.
 const answer = {
   type: 'agreement_event',
   id: '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3',
   occurredAt: '2026-11-02T00:00:00.000Z',
   eventType: 'accepted',
   agreement,
-  statement: {
-    statement: {
-      agreement,
-      terms: [],
-      signer: 'alice$client.example',
-      decision: 'accepted',
-      signedAt: '2026-11-02T00:00:00.000Z',
-    },
-    selector: 'btps1',
-    signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
-  },
 };
 
 describe("an agreement's answer, sent by a device", () => {

@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
-import { BtpSignatureSchema, canonicalBase64Schema, identitySchema, lowerIdentitySchema } from './shared.js';
+import { BtpSignatureSchema, BtpCanonicalBase64Schema, identitySchema, BtpLowerIdentitySchema } from './shared.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BtpKeyChainSchema } from './keyChainSchema.js';
 import { BtpBoundViewSchema } from './boundViewSchema.js';
@@ -558,7 +558,7 @@ const BtpAcceptanceSchema = z
  */
 export const BtpAgreementDocSchema = BtpLetterDocSchema.extend({
   type: z.literal('agreement'),
-  salt: canonicalBase64Schema.refine(
+  salt: BtpCanonicalBase64Schema.refine(
     (salt) => Buffer.from(salt, 'base64').length === 32,
     'a salt is 32 random bytes',
   ),
@@ -807,7 +807,7 @@ export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.Zod
     .object({
       agreement: BtpAgreementRefSchema,
       terms: boundedArray(sha256Hex, letter.attachments),
-      signer: lowerIdentitySchema,
+      signer: BtpLowerIdentitySchema,
       // Since rc.4: the artifact that first delivers it, as its cosignature names it; a device's is its delegated artifact.
       artifactId: z.string().uuid(),
       decision: z.enum(['accepted', 'declined']),
@@ -876,9 +876,9 @@ export const BtpCosignedStatementSchema = z
 
 const BtpCosignatureRecipientSchema = z
   .object({
-    identity: lowerIdentitySchema,
+    identity: BtpLowerIdentitySchema,
     fingerprint: z.string().min(1),
-    wrappedKey: canonicalBase64Schema,
+    wrappedKey: BtpCanonicalBase64Schema,
   })
   .strict();
 
@@ -889,8 +889,8 @@ const BtpCosignatureRecipientSchema = z
  */
 export const BtpCosignatureSchema = z
   .object({
-    ref: BtpAgreementRefSchema.extend({ originator: lowerIdentitySchema }).strict(),
-    signer: lowerIdentitySchema,
+    ref: BtpAgreementRefSchema.extend({ originator: BtpLowerIdentitySchema }).strict(),
+    signer: BtpLowerIdentitySchema,
     selector: z.string().min(1).optional(),
     delegatedArtifact: BtpDelegatedArtifactSchema.optional(),
     artifactId: z.string().uuid(),
@@ -900,11 +900,11 @@ export const BtpCosignatureSchema = z
     encryption: z
       .object({
         algorithm: z.literal('aes-256-gcm'),
-        iv: canonicalBase64Schema,
-        authTag: canonicalBase64Schema,
+        iv: BtpCanonicalBase64Schema,
+        authTag: BtpCanonicalBase64Schema,
       })
       .strict(),
-    ciphertext: canonicalBase64Schema.refine(
+    ciphertext: BtpCanonicalBase64Schema.refine(
       (text) => text.length <= agreement.cosignatureCiphertextChars,
       'a cosignature carries a statement, never a document',
     ),
