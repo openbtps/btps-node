@@ -240,6 +240,28 @@ describe('a client sending over a real connection', () => {
     }
   });
 
+  it('reports an error with no request id that a receiver wrote as it ended the connection', async () => {
+    // The line and the end in one write: the end must not overtake the line still being read.
+    const { tcp } = await receiver((_line, socket) => {
+      socket.end(
+        `${JSON.stringify({
+          ...answerTo('unused'),
+          reqId: undefined,
+          type: 'btps_error',
+          status: { ok: false, code: 503, message: 'Service Unavailable' },
+        })}\n`,
+      );
+    });
+    track(tcp);
+    for (let i = 0; i < 200; i += 1) {
+      const client = track(clientFor());
+      const { response, error } = await client.send(artifact(`b-${i}`));
+      expect(error?.code, `send ${i}`).not.toBe(BTP_ERROR_CONNECTION_ENDED.code);
+      expect(response?.status.code, `send ${i}`).toBe(503);
+      client.destroy();
+    }
+  });
+
   it('makes a new connection for the next send once the receiver has ended one', async () => {
     const { tcp, connections } = await receiver((line, socket) => {
       echo(line, socket);
