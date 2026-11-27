@@ -326,11 +326,47 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
           }),
         ),
       ),
+      // Since rc.4: a cosignature's opened statement, held to the statement's own rules and its padding.
+      ...agreements.cosigned.map((c) =>
+        check(`agreements/cosigned/${c.name}`, () => {
+          const problem = named('cosignedStatementProblem')(c.value);
+          if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+          else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
       ...agreements.envelopes.map((c) =>
         check(`agreements/envelope/${c.name}`, () => {
           const { success } = rules.transporter.BtpTransporterArtifactSchema.safeParse(c.artifact);
           if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
           else ensure(!success, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
+      // Since rc.4: cosignatures as every BTPS server checks them on receipt, without decrypting, by the keys given.
+      ...agreements.cosignatures.map((c) =>
+        check(`agreements/cosignatures/${c.name}`, async () => {
+          const keyOf = async (identity, selector) =>
+            c.keys.find((k) => k.identity === identity && k.selector === selector)?.publicKey;
+          const problem = await named('cosignaturesProblem')(c.artifact, keyOf);
+          if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+          else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
+      // Since rc.4: a cosignature opened by a recipient with its key: exactly what was signed, or refused.
+      ...agreements.opened.map((c) =>
+        check(`agreements/opened/${c.name}`, async () => {
+          const result = await named('openCosignature')(c.cosignature, {
+            identity: c.receiver.identity,
+            key: c.receiver.privateKey,
+          });
+          if (c.expect === 'not-a-recipient') ensure(result === undefined, 'opened for someone it is not for');
+          else if (c.expect === 'refuse') ensure(result !== undefined && 'problem' in result, `opened; expected it refused: ${c.why}`);
+          else {
+            ensure(result !== undefined && 'statement' in result, `refused: ${result?.problem}`);
+            ensure(
+              JSON.stringify(canonicalizeValue(result.statement)) === JSON.stringify(canonicalizeValue(c.statement)),
+              'opened to another statement',
+            );
+          }
         }),
       ),
       ...agreements.documentType.map((c) =>
@@ -347,16 +383,16 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         const found = named('agreementContentSha256')(document);
         ensure(found === sha256, `the SDK hashes the content to ${found}`);
       }),
-      check('agreements/statement-sha256', () => {
-        const { record, sha256 } = agreements.statementSha256;
-        const found = named('statementRecordSha256')(record);
-        ensure(found === sha256, `the SDK hashes the record to ${found}`);
+      check('agreements/cosignature-sha256', () => {
+        const { cosignature, sha256 } = agreements.cosignatureSha256;
+        const found = named('cosignatureSha256')(cosignature);
+        ensure(found === sha256, `the SDK hashes the cosignature to ${found}`);
       }),
       ...agreements.statements.map((c) =>
         check(`agreements/statement/${c.name}`, () => {
           const problem = named('agreementStatementProblem')(
             c.envelope,
-            c.event,
+            c.answer,
             c.agreement,
             c.earlier,
           );

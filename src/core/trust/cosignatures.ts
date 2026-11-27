@@ -169,8 +169,8 @@ const signatureProblem = async (
  * Since 1.2 (rc.4): why the cosignatures `artifact` carries are not what they say, or undefined, checked as a BTPS
  * server checks them on receipt, without decrypting. Each is signed by its signer (or a device its delegation vouches
  * for); all name one document; no signer appears twice; each one that names `previous` follows the one before it.
- * A signer's own answer carries exactly its own, delivered by that artifact (`artifactId`); any other carrier is the
- * document's originator, forwarding.
+ * Its document's originator forwards any of them (its own among them, when it signs too); anyone else carries only its
+ * own answer, delivered by that artifact (`artifactId`).
  */
 export const cosignaturesProblem = async (
   artifact: BTPTransporterArtifact,
@@ -184,12 +184,12 @@ export const cosignaturesProblem = async (
   if (cosignatures.some(({ ref }) => !sameRef(ref, first.ref))) return 'cosignatures name one document';
   const signers = cosignatures.map(({ signer }) => signer.toLowerCase());
   if (new Set(signers).size !== signers.length) return 'a signer cosigns once';
-  const own = cosignatures.find(({ signer }) => sameIdentity(signer, artifact.from));
-  if (own !== undefined) {
+  // Its originator forwards any of them, its own among them when it signs too; anyone else carries its own answer only.
+  if (!sameIdentity(artifact.from, first.ref.originator)) {
+    const own = cosignatures.find(({ signer }) => sameIdentity(signer, artifact.from));
+    if (own === undefined) return "cosignatures are forwarded by their document's originator";
     if (cosignatures.length !== 1) return "a signer's answer carries its own cosignature only";
     if (own.artifactId !== artifact.id) return "a signer's cosignature names the artifact that delivers it";
-  } else if (!sameIdentity(artifact.from, first.ref.originator)) {
-    return "cosignatures are forwarded by their document's originator";
   }
   for (const [index, cosignature] of cosignatures.entries()) {
     const before = cosignatures[index - 1];
