@@ -1388,12 +1388,12 @@ verifyTransporterSignature(
 **Description:**
 Since 1.2. Who signed a transporter artifact, checked exactly as a `BtpsServer` checks it on arrival:
 
-- **Not delegated:** against the sender's own key from DNS.
-- **Delegated:** the delegation must be allowed, by the sender itself or its domain's operator. It must be attested by the operator when the sender delegates for itself, and signed by its delegator, each against their DNS keys. Then the artifact must be signed by the delegated agent's key.
+- **Not delegated:** against the sender's own key, at the artifact's selector.
+- **Delegated:** the delegation must be allowed, by the sender itself or its domain's operator. It must be attested by the operator when the sender delegates for itself, and signed by its delegator, each against their own keys. Then the artifact must be signed by the delegated agent's key.
 
-`keyResolver` finds each key in place of DNS. With `keyChains` (`resolveKeyChain`, `retiredKeyGraceSeconds`), each key is also checked against its identity's key chain, as a server does, and one rotated away past its grace or revoked is refused (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`).
+`keyResolver` finds each key in place of DNS. Without one, each key is looked up in DNS only; pass `createDefaultKeyResolver({ from })` to find a key that is not in DNS from its identity's host, as a server does ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)). With `keyChains` (`resolveKeyChain`, `retiredKeyGraceSeconds`), each key is also checked against its identity's key chain, as a server does, and one rotated away past its grace or revoked is refused (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`).
 
-On success `signerKey` is the key that signed the artifact itself, the one to pass to `decryptVerify`. `BtpsAgent.openResult` uses it, so a device and a server never check a sender differently.
+On success `signerKey` is the key that signed the artifact itself, the one to pass to `decryptVerify`. `BtpsAgent.openResult` uses it, so a device runs a server's signature steps and finds the sender's key as a server does. It passes no `keyChains`, so unlike a server, a device checks no key chain.
 
 ---
 
@@ -1910,7 +1910,12 @@ Since 1.2, from `@btps/sdk/server/core`. Middleware a provider adds for its own 
 ```ts
 verifyEvidenceBundle(
   bundle: unknown,
-  options?: { trustedTimestampRoots?: string[] }
+  options?: {
+    trustedTimestampRoots?: string[];
+    anchors?: string[];
+    operators?: Record<string, string>;
+    online?: BTPKeyChainCheck & { keyResolver?: BtpsKeyResolver };
+  }
 ): Promise<BTPEvidenceFacts>
 buildEvidenceBundle(
   parts: {
@@ -1927,7 +1932,18 @@ describeEvidenceFacts(facts: BTPEvidenceFacts): string
 ```
 
 **Description:**
-Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its cosignature's signature and key kind, whether its text is the one signed (`statementMatches`), its decision, agreement, terms, deadline and order, and whether the agreement is `complete`. A statement whose text is not the one signed has no `decision`, and its terms and deadline do not hold. It uses only the keys in the bundle, each counted only when its fingerprint is its own, and names each key it checked a signature with (`originatorKey`, each statement's `key` and, for a device, `delegationKey`); `keysConfirmedOnline` is always `false`, so `complete` means the bundle is consistent with its own keys, not that each key was its identity's. `buildEvidenceBundle` makes one from the opened agreement, its cosignatures in the order taken, as they travelled, each one's statement as `decryptVerify` opened it (`cosigned`), which it writes as the exact text its cosignature signed (`cosignedStatementText`), and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`), and a device's cosignature without its delegated artifact (`BTP_ERROR_VALIDATION`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. The deadline fact (`withinDeadline`) is judged by the statement's own `signedAt`, the signer's claim; a trusted timestamp's `time` against `acceptance.by` is independent time, which `describeEvidenceFacts` prints on the line after the statement's, as a fact and which never changes `complete`. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its cosignature's signature and key kind, whether its text is the one signed (`statementMatches`), its decision, agreement, terms, deadline and order, and whether the agreement is `complete`. A statement whose text is not the one signed has no `decision`, and its terms and deadline do not hold. It uses only the keys in the bundle, each counted only when its fingerprint is its own, and names each key it checked a signature with (`originatorKey`, each statement's `key` and, for a device, `delegationKey`); `keysConfirmedOnline` is `false` unless it is checked `online` (below), so `complete` means the bundle is consistent with its own keys, not that each key was its identity's. `buildEvidenceBundle` makes one from the opened agreement, its cosignatures in the order taken, as they travelled, each one's statement as `decryptVerify` opened it (`cosigned`), which it writes as the exact text its cosignature signed (`cosignedStatementText`), and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`), and a device's cosignature without its delegated artifact (`BTP_ERROR_VALIDATION`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. The deadline fact (`withinDeadline`) is judged by the statement's own `signedAt`, the signer's claim; a trusted timestamp's `time` against `acceptance.by` is independent time, which `describeEvidenceFacts` prints on the line after the statement's, as a fact and which never changes `complete`. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+
+The options, each optional:
+
+| Option                  | What it does                                                                                                                                                                                                                                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trustedTimestampRoots` | the PEM certificates whose timestamps the reader trusts                                                                                                                                                                                                                                                        |
+| `anchors`               | signing-key fingerprints the reader kept, which anchor a key chain offline                                                                                                                                                                                                                                     |
+| `operators`             | operator fingerprints the reader kept, by domain, so an operator's answer can confirm a lost key's rotation                                                                                                                                                                                                    |
+| `online`                | checks each signing key now as its identity's, by its key chain (`resolveKeyChain`, `retiredKeyGraceSeconds`), or, with no chain, by its key at the signature's selector. Since 1.2, with `keyResolver`, that key is asked of it (`verify`): `createDefaultKeyResolver({ from })` finds it as a server does, so a key not in DNS is confirmed through its host. Without it, in DNS only. `keysConfirmedOnline` reports the result |
+
+See [In an evidence bundle](../protocol/specifications/key-rotation.md#in-an-evidence-bundle).
 
 ---
 

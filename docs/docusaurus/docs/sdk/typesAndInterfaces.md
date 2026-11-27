@@ -46,7 +46,7 @@ interface BtpsServerOptions {
 
 - `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
 - `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. `serverIdentity` is the domain's operator (for example `admin$saas.example`), the same identity and key that signs identity-lookup answers, so a provider keeps one key pair. Every 1.1 and 1.2 client takes a lookup answer only from the operator, so a `serverIdentity` of any other identity would leave the host unable to answer lookups
-- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, each is looked up in DNS, as before
+- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, the server uses `createDefaultKeyResolver({ from })`, asking as its `serverIdentity`: each key is looked up in DNS, then, only when DNS has no record for it, from its identity's host. A resolver you give is asked in its place, so wrap one given `from` to keep finding keys that are not in DNS
 - `entityTypeOf`: Optional, since 1.2. Whether one of the platform's own addresses is a `person` or an `organisation`, asked when a person's trust request for details arrives for it: a person asking an organisation gives nothing in return, and asking a person gives what it asks for ([You give what you ask for](../features/trustPermissions.md#you-give-what-you-ask-for)). Without it, or when it returns `undefined` or throws, the receiver is held to be a person
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
@@ -1269,21 +1269,29 @@ type BTPKeyUse = 'verify' | 'encrypt';
 
 interface BtpsKeyResolver {
   resolvePublicKey(identity: string, selector: string, use: BTPKeyUse): Promise<string | undefined>; // a PEM key
+  resolveKeyChain?(identity: string): Promise<BTPKeyChainLookup>; // optional: the identity's key chain, from its host
 }
 ```
 
-- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer). Without a resolver it is looked up in DNS only.
+- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer), at the selector the signature names. Without a resolver, `BtpsServer` and `BtpsAgent.openResult` find it as `createDefaultKeyResolver({ from })` does: in DNS, then from the identity's host. Elsewhere (a client checking a signed answer, `verifyTransporterSignature`, `BtpsDelegator`, an online evidence check), it is looked up in DNS only.
 - `encrypt`: a receiver's key. Without a resolver it is looked up in DNS, then from the receiver's host. With one, the resolver is asked in place of DNS, and the host is still asked when it has no key.
 - `_btps.host` records are not keys and stay outside the resolver. A local caching DNS resolver covers them.
 
-`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity.
+`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. `from` is the asker's own identity, and `btpMtsOptions` the TLS options for the connection to a host.
 
-A cache in front of DNS. Without `from` it never asks a host: BTPS asks the receiver's host itself after the resolver has no key, so wrapping DNS alone is enough.
+| Given `from`?    | `verify` and `encrypt`                                                                                                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| yes              | DNS first, then, only when DNS has no record for the key, the identity's host, in an answer its domain's operator signed. For `verify`, only the host's key at the signature's selector is taken |
+| no               | DNS only                                                                                                                                                                                     |
+
+A DNS failure other than "no such record" never leads to asking the host. A domain's operator's key is found in DNS only: no host vouches for it ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)).
+
+A cache in front of the default lookup, for a server. Given `from`, signature keys not in DNS are still found through their hosts:
 
 ```ts
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
 
-const lookup = createDefaultKeyResolver();
+const lookup = createDefaultKeyResolver({ from: 'admin$saas.example' }); // your server's own identity
 const keys = new Map<string, { pem: string; until: number }>();
 const keyResolver: BtpsKeyResolver = {
   async resolvePublicKey(identity, selector, use) {
@@ -1300,7 +1308,8 @@ const keyResolver: BtpsKeyResolver = {
 
 - **Keys outlive rotations.** A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
 - **Don't cache a miss for long, or at all.** Otherwise a key published after the lookup stays "not found" for as long as the miss is kept.
-- **With `from`, a miss asks the host twice.** Wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
+- **Without `from`, signature keys are DNS's alone.** A server given a resolver asks it in place of its own lookup. A resolver that wraps `createDefaultKeyResolver()` without `from` finds no signature key that is not in DNS, and a signature by a hosted identity is refused (`BTP_ERROR_RESOLVE_PUBKEY`).
+- **With `from`, a miss to encrypt to asks the host twice.** On a client, wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
 
 ### BTPSigningKey and BTPDecryptionKey
 

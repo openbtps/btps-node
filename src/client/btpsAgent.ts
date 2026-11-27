@@ -60,6 +60,7 @@ import {
 import { randomUUID } from 'crypto';
 import { isValidIdentity } from '@core/utils/index.js';
 import { verifyTransporterSignature } from '@core/delegation/verifyTransporterSignature.js';
+import { createDefaultKeyResolver } from '@core/crypto/keyResolver.js';
 
 const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
@@ -419,7 +420,11 @@ export class BtpsAgent extends BtpsClient {
     }
 
     try {
-      const signed = await verifyTransporterSignature(artifact, this.options.keyResolver);
+      // A sender's key not in DNS is asked of its host, as this device's identity, as a server asks it.
+      const keyResolver =
+        this.options.keyResolver ??
+        createDefaultKeyResolver({ from: this.options.to, btpMtsOptions: this.options.btpMtsOptions });
+      const signed = await verifyTransporterSignature(artifact, keyResolver);
       if (!signed.isValid || !signed.signerKey) {
         return {
           payload: undefined,

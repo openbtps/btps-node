@@ -26,10 +26,17 @@ sequenceDiagram
     autonumber
     participant D as Device
     participant P as Provider
+    participant H as The sender's host
     D->>P: inbox.fetch
     P->>P: wrapForAgent(artifact, the user's decrypter, the device's trust record)
     P-->>D: results: { artifact, agentKey: { key, fingerprint, wrappedAt } }
-    D->>D: openResult(entry): the key is its own, who signed is checked as a server would, decrypt
+    D->>D: openResult(entry): the key is its own
+    D->>D: the sender's key, from DNS
+    opt DNS has no record for it
+        D->>H: identity lookup, as the user, at the signature's selector
+        H-->>D: the key, in an answer the domain's operator signed
+    end
+    D->>D: who signed is checked with a server's signature steps, no key chain, decrypt
 ```
 
 ```json btps=response
@@ -107,6 +114,8 @@ for (const entry of response.document.results) {
 ```
 
 `openResult` refuses a key wrapped to another device key: a device that has just rotated finishes moving to its new key first.
+
+`openResult` finds each signing key as a server does: from the agent's `keyResolver` when it has one, else in DNS, then, when DNS has no record for it, from the signer's host, asking as the agent's own identity ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)). So a document from a hosted sender, whose key is not in DNS, opens on the device too. Unlike a server, the device checks no key chain: a key rotated away or expired is refused only once DNS or the host no longer gives it ([Checking keys on arrival](../protocol/specifications/key-rotation.md#checking-keys-on-arrival)).
 
 ### Cosignatures on a device
 

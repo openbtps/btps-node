@@ -140,7 +140,9 @@ v=1.2.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
 2. Extract domain: `vendorcorp.com`
 3. Resolve `_btps.host.vendorcorp.com` → host address, selector and operator
 4. Resolve `btps1._btps.identity.billing.vendorcorp.com` → public key
-5. If DNS has no such record, ask the host at `u` with an identity lookup. Only an answer signed by the domain's operator (`op`) is accepted.
+5. If DNS has no such record, ask the host at `u` with an identity lookup. Only an answer signed by the domain's operator (`op`) is accepted. A DNS lookup that fails for any other reason never leads to the host.
+
+The same steps find a key to encrypt to and, since 1.2, a key to check a signature. For a signature, the selector in step 4 is the one the signature names, not `s=`, and the identity lookup asks the host for the key at that selector (`identitySelector`). See [Finding a signature key](./key-rotation.md#finding-a-signature-key).
 
 This separation enables:
 
@@ -155,6 +157,8 @@ The operator (`op`) is the identity that runs a domain's BTPS server and speaks 
 - **Delegation:** a delegation's `signedBy` must be the operator of the domain of `from`, or the sender itself (`from === signedBy`, as for `alice$alice.com`). Being an address on the same domain is not enough: on a shared domain every user can hold a key of their own, and could otherwise sign as any other user.
 - **Attestation:** an attestation's `signedBy` must be the operator of the domain of `from`.
 - **Identity lookup answers:** an answer from the host must be signed by the operator of the looked-up identity's domain.
+
+The operator's own key is found in DNS only. It is the key every host answer is checked with, so no host vouches for it: a requester never asks a host for its domain's operator.
 
 The operator may be on another domain. A business on its own domain hosted by a SaaS publishes the SaaS's identity, for example `op=admin$saas.com` in `_btps.host.bobco.com`.
 

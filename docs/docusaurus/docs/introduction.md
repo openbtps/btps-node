@@ -182,7 +182,7 @@ Every participant publishes:
 
 ```mermaid
 graph TD
-    A[Trust Request, signed by the sender] --> B[Receiver verifies the signature against the sender's DNS key]
+    A[Trust Request, signed by the sender] --> B["Receiver verifies the signature against the sender's key: DNS first, then the sender's host"]
     B --> C[Receiver decides: accept, reject or block]
     C --> D[Trust Response, signed by the receiver]
     D --> E[Documents: invoices, receipts, payslips, letters, agreements]

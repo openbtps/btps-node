@@ -145,7 +145,8 @@ Every key BTPS looks up goes through one option, `keyResolver` (since 1.2), on `
 // ✅ GOOD: cache in front of the SDK's own lookup
 import { createDefaultKeyResolver } from '@btps/sdk/crypto';
 
-const lookup = createDefaultKeyResolver();
+// As your server's own identity, so a delegator's or attestor's key not in DNS is found at its host.
+const lookup = createDefaultKeyResolver({ from: options.serverIdentity.identity });
 const cache = new Map();
 const keyResolver = {
   async resolvePublicKey(identity, selector, use) {

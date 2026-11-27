@@ -11,6 +11,8 @@ Identity lookup artifacts are used to request identity public records for identi
 
 Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesting identity public records when DNS-based resolution is not available. This is commonly used for SaaS platform identities like `john$saas.com` where the identity is managed by the SaaS provider rather than published in DNS.
 
+A lookup finds a key for either use: to encrypt to the identity, or, since 1.2, to check a signature it made ([Finding a signature key](./key-rotation.md#finding-a-signature-key)).
+
 ## Artifact Structure
 
 ```json btps=identityLookup
@@ -39,7 +41,7 @@ It has these members and no other: a host refuses a lookup that carries anything
 
 ## Optional Fields
 
-- **identitySelector**: Specific selector for the identity (if different from hostSelector)
+- **identitySelector**: Specific selector for the identity (if different from hostSelector). The host answers with the identity's key at this selector, or at the identity's current one when it is absent. Since 1.2, a requester checking a signature sends the selector the signature names, so a signature made before a rotation is checked with the key it was made with. A lookup for a key to encrypt to leaves it out
 - **keyChain** (since 1.2, in a `1.2.0` lookup only): `true` asks for the identity's [key chain](./key-rotation.md) too
 
 ## Use Cases
@@ -209,7 +211,11 @@ The requester accepts an answer only when:
 
 An answer signed by anyone else is refused, even with a valid signature. A domain without `op` cannot be looked up through its host. See [The Domain Operator](./overview.md#the-domain-operator).
 
-The requester asks the host only when DNS has no record for the identity: a lookup is DNS first, then the host.
+The requester asks the host only when DNS has no record for the identity: a lookup is DNS first, then the host. A DNS lookup that fails for any reason other than "no such record" never leads to the host.
+
+The requester never asks a host for its domain's operator. The operator's key is what every host answer is checked with, so it is found in DNS only: no host vouches for it. The SDK refuses such a lookup before sending it (`BTP_ERROR_IDENTITY_NOT_FOUND`, "whose key is found in DNS only").
+
+Since 1.2, a lookup for a key to check a signature carries `identitySelector`, the selector the signature names, and its answer is taken only when its document's `selector` is that selector.
 
 Since 1.2, the requester sends a `1.2.0` lookup, and asks again as `1.1.0` when a 1.1 host refuses the version. The answer to a `1.2.0` lookup is also refused unless its `reqId` is the lookup's `id`, its `issuedAt` is within 300 seconds of the requester's clock, and its document's `identity` is the identity asked about (and it carries `keyChain` when asked). So an old answer cannot be replayed, nor one about another identity passed off. A key chain is asked of the host even when DNS has the identity's key: see [Key Rotation](./key-rotation.md#checking-keys-on-arrival).
 

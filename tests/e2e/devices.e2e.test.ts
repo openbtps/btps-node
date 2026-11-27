@@ -391,6 +391,27 @@ describe('journey: a user registers a phone', () => {
     expect(withAnotherKey.error).toBeDefined();
   });
 
+  it("opens what a hosted sender, with no key in DNS, sent: the phone finds the sender's key from its host", async () => {
+    const hosted = await addUser(elsewhere, 'hosted', 'host');
+    await recordTrust(host.trustStore, hosted.identity, user.identity, 'accepted');
+    const document = invoiceDocument({ id: 'INV-HOSTED-TO-PHONE' });
+    const arrived = await artifactFrom(hosted, user.identity, 'BTPS_DOC', document);
+    expect((await deliver(arrived)).response?.status.ok).toBe(true);
+
+    const { response } = await phone(agentId, deviceKeys, user.identity).command(
+      'inbox.fetch',
+      user.identity,
+      { limit: 50 },
+    );
+    const entry = (
+      response?.document as { results: { artifact: BTPTransporterArtifact }[] }
+    ).results.find((result) => result.artifact.id === arrived.id)!;
+    const opened = await phone(agentId, deviceKeys, user.identity).openResult(entry as never);
+
+    expect(opened.error).toBeUndefined();
+    expect(opened.payload?.document).toEqual(document);
+  });
+
   it("keeps a send's sync from the phone, and refuses one sent to the provider directly", async () => {
     const original = sent.at(-1)!;
     const syncOf = syncOfArtifact(original);

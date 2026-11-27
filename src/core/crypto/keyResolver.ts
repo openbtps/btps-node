@@ -36,10 +36,14 @@ export interface BtpsKeyResolver {
 
 /**
  * Since 1.2: the lookup BTPS does without a resolver, to wrap with a cache. A
- * signature key is looked up in DNS only. A receiver's key is looked up in DNS
- * first, then from the receiver's host, in an answer its domain's operator
- * signed; that needs `from`, the sender's own identity, and the TLS options
- * for the connection. Without `from`, an encryption key is looked up in DNS only.
+ * key, to check a signature or to encrypt to, is looked up in DNS first, then,
+ * only when DNS has no record for it, from the identity's host, in an answer
+ * its domain's operator signed: an identity whose key is not in DNS (as a
+ * provider's many hosted addresses are) is found the same way for both. That
+ * needs `from`, the asker's own identity, and the TLS options for the
+ * connection; without `from`, a key is looked up in DNS only. A DNS failure
+ * other than "no such record" is never a reason to ask the host. A signature
+ * key from the host must be the one at the selector the signature names.
  *
  * Since 1.2, it also gives an identity's key chain from its host, asking as
  * `from`, and keeps each answer (a chain, or none to be had) for
@@ -63,10 +67,15 @@ export const createDefaultKeyResolver = (options?: {
   return {
     async resolvePublicKey(identity, selector, use) {
       const inDns = await resolvePublicKey(identity, selector);
-      if (inDns || use === 'verify' || !options?.from) return inDns;
+      if (inDns || !from) return inDns;
       const client = await clientFor(identity);
       try {
-        return (await client.resolveIdentity(identity, options.from)).response?.publicKey;
+        if (use === 'encrypt')
+          return (await client.resolveIdentity(identity, from)).response?.publicKey;
+        // A signature names its key by selector, one made before a rotation the key it was made with: that one is asked for.
+        const answer = (await client.resolveIdentity(identity, from, undefined, selector)).response;
+        if (!answer?.publicKey || answer.selector !== selector) return undefined;
+        return answer.publicKey;
       } finally {
         client.destroy();
       }

@@ -236,17 +236,17 @@ export class BtpsServer {
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
-    this.keyResolver = options.keyResolver;
     // Since 1.2: every arrival's keys are checked against their identity's key
     // chain, asked of its host as this server's identity, unless the resolver
-    // gives chains itself.
+    // gives chains itself. Without a resolver, a key not in DNS is asked of
+    // its identity's host, as this server, as an encryption key is.
     const keyChainMaxCacheSeconds = resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds);
-    const chains = options.keyResolver?.resolveKeyChain
-      ? options.keyResolver
-      : createDefaultKeyResolver({
-          from: options.serverIdentity.identity,
-          keyChainMaxCacheSeconds,
-        });
+    const ownResolver = createDefaultKeyResolver({
+      from: options.serverIdentity.identity,
+      keyChainMaxCacheSeconds,
+    });
+    this.keyResolver = options.keyResolver ?? ownResolver;
+    const chains = options.keyResolver?.resolveKeyChain ? options.keyResolver : ownResolver;
     this.keyChains = {
       resolveKeyChain: (identity) =>
         chains.resolveKeyChain?.(identity) ??
