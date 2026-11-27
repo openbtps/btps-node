@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.2 agreements, with rc.4's cosignatures. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `cosigned` are a cosignature's opened statements, `{ statement, padding }`, held to the statement's own rules. `envelopes` are transporter artifacts as a server reads them, unopened. `cosignatures` are events carrying cosignatures, as every BTPS server checks them on receipt without decrypting, by the public keys given (`keys`, by identity and selector). `opened` is a cosignature opened by a recipient with its private key (`receiver`): `accept` opens to `statement` exactly, `refuse` is refused, `not-a-recipient` is not for it. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `cosignatureSha256` is the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact, which the next names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`answer`, its cosignature and opened statement, sent from `envelope.from` to `envelope.to`), its `agreement`, and the answers already taken (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "description": "BTPS 1.2 agreements, with their cosignatures. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `cosigned` are a cosignature's opened statements, `{ statement, padding }`, held to the statement's own rules. `envelopes` are transporter artifacts as a server reads them, unopened. `cosignatures` are events carrying cosignatures, as every BTPS server checks them on receipt without decrypting, by the public keys given (`keys`, by identity and selector). `opened` is a cosignature opened by a recipient with its private key (`receiver`): `accept` opens to `statement` exactly, `refuse` is refused, `not-a-recipient` is not for it. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `cosignatureSha256` is the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact, which the next names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`answer`, its cosignature and opened statement, sent from `envelope.from` to `envelope.to`), its `agreement`, and the answers already taken (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
   "documents": [
     {
       "name": "agreement",
@@ -1007,7 +1007,7 @@
       },
       "version": "1.2.0",
       "expect": "refuse",
-      "why": "an agreement carries its salt (since rc.4)"
+      "why": "an agreement carries its salt"
     },
     {
       "name": "agreement-with-a-short-salt",
@@ -1338,7 +1338,7 @@
       },
       "version": "1.2.0",
       "expect": "refuse",
-      "why": "an answer's statement travels as its cosignature, outside the event (since rc.4)"
+      "why": "an answer's statement travels as its cosignature, outside the event"
     },
     {
       "name": "agreement-complete-carrying-statements",
@@ -1357,7 +1357,7 @@
       },
       "version": "1.2.0",
       "expect": "refuse",
-      "why": "forwarded statements travel as cosignatures, outside the event (since rc.4)"
+      "why": "forwarded statements travel as cosignatures, outside the event"
     },
     {
       "name": "statement-with-another-event-type",
@@ -1988,7 +1988,7 @@
         }
       },
       "expect": "refuse",
-      "why": "a statement names the artifact that delivers it (since rc.4)"
+      "why": "a statement names the artifact that delivers it"
     },
     {
       "name": "padding-past-its-bucket",

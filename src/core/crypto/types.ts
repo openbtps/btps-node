@@ -83,7 +83,7 @@ export interface BTPCryptoResponse<T = BTPDocType> {
   /** Since 1.2: whether the opened document's BoundView may be shown, when it carries one */
   boundView?: BTPBoundViewResult;
   /**
-   * Since 1.2 (rc.4): the statement in each of the event's cosignatures, by position: opened and held to what its
+   * Since 1.2: the statement in each of the event's cosignatures, by position: opened and held to what its
    * signer signed when the receiver is one of its recipients, null when it is not.
    */
   cosigned?: (BTPAgreementStatement | null)[];

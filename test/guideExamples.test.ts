@@ -83,7 +83,7 @@ const schemaFor = (kind: string): z.ZodTypeAny => {
     identityDocument: BtpIdentityResDocSchema,
     deliveryFailure: BtpDeliveryFailureArtifactSchema,
     statement: BtpAgreementStatementSchema,
-    // Since rc.4: a statement travels as a cosignature; opened, it is `{ statement, padding }`.
+    // Since 1.2: a statement travels as a cosignature; opened, it is `{ statement, padding }`.
     cosignature: BtpCosignatureSchema,
     cosignedStatement: BtpCosignedStatementSchema,
   };

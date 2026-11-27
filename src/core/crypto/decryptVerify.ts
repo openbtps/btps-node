@@ -25,7 +25,7 @@ const genDecryptError = (error: BTPErrorException) => ({
  * Since 1.2, `contentKey` is the document's content key wrapped to the
  * receiver's own key instead of the envelope's (a device's `agentKey.key`): the
  * signature is checked over the artifact as sent, and only the decryption uses it.
- * Since 1.2 (rc.4), `cosignatureKeys` are the cosignatures' content keys wrapped
+ * Since 1.2, `cosignatureKeys` are the cosignatures' content keys wrapped
  * the same way (`agentKey.cosignatureKeys`), by position.
  */
 export const decryptVerify = async <T = unknown>(
@@ -93,7 +93,7 @@ export const decryptVerify = async <T = unknown>(
   const boundView =
     restEncryptedPayload.type === 'BTPS_DOC' ? boundViewResultOf(decryptedData) : undefined;
 
-  // Since 1.2 (rc.4): each cosignature the receiver is a recipient of, opened and held to what it signed.
+  // Since 1.2: each cosignature the receiver is a recipient of, opened and held to what it signed.
   const cosigned = await openedCosignatures(
     restEncryptedPayload,
     decryptedData,
@@ -111,7 +111,7 @@ export const decryptVerify = async <T = unknown>(
 };
 
 /**
- * Since 1.2 (rc.4): the statements in an event's cosignatures, by position: each one the receiver (`to`) is a
+ * Since 1.2: the statements in an event's cosignatures, by position: each one the receiver (`to`) is a
  * recipient of, opened with its key and held to its cosignature (openCosignature), and null for one it is not. They
  * must all name the document the opened event is about. An error when one that is the receiver's does not hold.
  */

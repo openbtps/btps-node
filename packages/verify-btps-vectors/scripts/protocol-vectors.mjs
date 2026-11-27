@@ -3061,7 +3061,7 @@ const signatureBy = (key, value) => ({
 });
 
 /**
- * BTPS 1.2 agreements: the agreement document, the signers' answers as cosignatures (rc.4) and their order, and the
+ * BTPS 1.2 agreements: the agreement document, the signers' answers as cosignatures and their order, and the
  * evidence bundle. `keys` are the originator's, two signers', a device's and the device's operator's, each
  * `{ publicKeyPem, privateKeyPem }`.
  *
@@ -3084,7 +3084,7 @@ export function agreements(keys) {
   };
   const BY = '2026-11-30T00:00:00.000Z';
   const at = (day) => `2026-11-${String(day).padStart(2, '0')}T00:00:00.000Z`;
-  // Since rc.4: an agreement carries 32 random bytes, so its contentSha256 cannot confirm a guess at its text.
+  // Since 1.2: an agreement carries 32 random bytes, so its contentSha256 cannot confirm a guess at its text.
   const SALT = Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64');
   /** A version 4 UUID, the same for the same seed: an artifact's id, as its cosignature and statement name it. */
   const uuidOf = (seed) => {
@@ -3255,7 +3255,7 @@ export function agreements(keys) {
   const drawn = { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] };
   const consent = { electronic: true, disclosureSha256: 'd'.repeat(64), at: at(1) };
 
-  // Answer and forwarding events, as an opened BTPS_EVENT carries them: since rc.4 its statements are outside it.
+  // Answer and forwarding events, as an opened BTPS_EVENT carries them: their statements travel outside them, as cosignatures.
   const answer = (eventType, given, more = {}) => ({
     type: 'agreement_event',
     id: given.statement.artifactId,
@@ -3351,7 +3351,7 @@ export function agreements(keys) {
       { ...agreement, originatorSignature: undefined },
       'an agreement always carries its originator signature',
     ),
-    docCase(refuse, 'agreement-without-a-salt', { ...agreement, salt: undefined }, 'an agreement carries its salt (since rc.4)'),
+    docCase(refuse, 'agreement-without-a-salt', { ...agreement, salt: undefined }, 'an agreement carries its salt'),
     docCase(
       refuse,
       'agreement-with-a-short-salt',
@@ -3392,13 +3392,13 @@ export function agreements(keys) {
       refuse,
       'accepted-carrying-its-statement',
       answer('accepted', alice, { statement: { statement: alice.statement, selector: 'btps1', signature: alice.cosignature.signature } }),
-      "an answer's statement travels as its cosignature, outside the event (since rc.4)",
+      "an answer's statement travels as its cosignature, outside the event",
     ),
     eventCase(
       refuse,
       'agreement-complete-carrying-statements',
       { ...forwarded('agreement_complete'), statements: [] },
-      'forwarded statements travel as cosignatures, outside the event (since rc.4)',
+      'forwarded statements travel as cosignatures, outside the event',
     ),
     eventCase(refuse, 'statement-with-another-event-type', answer('maybe', alice), 'an agreement event is accepted, declined, agreement_progress or agreement_complete'),
     refuse('accepted-under-1-1', 'BTPS_EVENT', answer('accepted', alice), '1.1 has no agreement events', under(V11)),
@@ -3477,7 +3477,7 @@ export function agreements(keys) {
     cosignedCase(refuse, 'signed-from-saying-nothing', aliceSays('accepted', { signedFrom: {} }), 'a context says an ip, a userAgent or a device'),
     cosignedCase(refuse, 'statement-with-another-decision', aliceSays('maybe'), 'decision is accepted or declined'),
     cosignedCase(refuse, 'statement-without-a-time', aliceSays('accepted', { signedAt: undefined }), 'a statement has its signedAt'),
-    cosignedCase(refuse, 'statement-without-its-artifact', aliceSays('accepted', { artifactId: undefined }), 'a statement names the artifact that delivers it (since rc.4)'),
+    cosignedCase(refuse, 'statement-without-its-artifact', aliceSays('accepted', { artifactId: undefined }), 'a statement names the artifact that delivers it'),
     cosignedCase(refuse, 'padding-past-its-bucket', aliceSays('accepted'), 'padding is shorter than its bucket', '0'.repeat(PAD + 1)),
   ];
 
@@ -3934,7 +3934,7 @@ export function agreements(keys) {
 
   return {
     description:
-      "BTPS 1.2 agreements, with rc.4's cosignatures. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `cosigned` are a cosignature's opened statements, `{ statement, padding }`, held to the statement's own rules. `envelopes` are transporter artifacts as a server reads them, unopened. `cosignatures` are events carrying cosignatures, as every BTPS server checks them on receipt without decrypting, by the public keys given (`keys`, by identity and selector). `opened` is a cosignature opened by a recipient with its private key (`receiver`): `accept` opens to `statement` exactly, `refuse` is refused, `not-a-recipient` is not for it. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `cosignatureSha256` is the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact, which the next names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`answer`, its cosignature and opened statement, sent from `envelope.from` to `envelope.to`), its `agreement`, and the answers already taken (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+      "BTPS 1.2 agreements, with their cosignatures. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `cosigned` are a cosignature's opened statements, `{ statement, padding }`, held to the statement's own rules. `envelopes` are transporter artifacts as a server reads them, unopened. `cosignatures` are events carrying cosignatures, as every BTPS server checks them on receipt without decrypting, by the public keys given (`keys`, by identity and selector). `opened` is a cosignature opened by a recipient with its private key (`receiver`): `accept` opens to `statement` exactly, `refuse` is refused, `not-a-recipient` is not for it. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `cosignatureSha256` is the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact, which the next names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`answer`, its cosignature and opened statement, sent from `envelope.from` to `envelope.to`), its `agreement`, and the answers already taken (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
     documents,
     events,
     cosigned,
@@ -4115,7 +4115,7 @@ export async function agreementTimestamps(set) {
   };
 
   const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
-  // A timestamp is over a cosignature's hash, the one the next names as previous (rc.4).
+  // A timestamp is over a cosignature's hash, the one the next names as previous.
   const chainHash = (cosignature) =>
     hashOf(Object.fromEntries(Object.entries(cosignature).filter(([k]) => k !== 'delegatedArtifact')));
   const [first, second] = base.bundle.cosignatures.map(chainHash);

@@ -220,7 +220,7 @@ describe('a client sending over a real connection', () => {
   });
 
   it('reports the answer a receiver wrote just before it ended the connection, never that it ended', async () => {
-    // An error frame and the end arrive together: the end must wait for the line already received (rc.4).
+    // An error frame and the end arrive together: the end must wait for the line already received.
     const { tcp } = await receiver((line, socket) => {
       const { id } = JSON.parse(line);
       reply(socket, {

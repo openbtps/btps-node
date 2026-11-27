@@ -55,10 +55,10 @@ export const BTPS_FIELD_LIMITS = {
   // Since 1.2, an agreement: a letter's limits, and who signs it.
   agreement: {
     signers: 20,
-    // Since rc.4: a cosignature's encrypted statement is padded up to a multiple of this many characters, so its
+    // Since 1.2: a cosignature's encrypted statement is padded up to a multiple of this many characters, so its
     // length does not tell an acceptance (with its visual signature and consent) from a decline.
     statementPaddingBucket: 4096,
-    // Since rc.4: a cosignature's ciphertext, in base64 characters: a statement with a drawn signature, padded.
+    // Since 1.2: a cosignature's ciphertext, in base64 characters: a statement with a drawn signature, padded.
     cosignatureCiphertextChars: 262144,
   },
   // Since 1.2, an identity's key chain: its records, and each key's DER SPKI in base64.

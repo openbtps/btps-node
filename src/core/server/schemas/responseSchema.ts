@@ -116,7 +116,7 @@ export const BtpQueryResultEntrySchema = z.object({
   agentKey: z
     .object({
       key: z.string().min(1).optional(),
-      // Since 1.2 (rc.4): each cosignature's content key, by position.
+      // Since 1.2: each cosignature's content key, by position.
       cosignatureKeys: z.array(z.string().min(1).nullable()).min(1).max(20).optional(),
       fingerprint: z.string().min(1),
       wrappedAt: z.string().datetime(),

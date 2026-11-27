@@ -387,7 +387,7 @@ export class BtpsAgent extends BtpsClient {
 
   /**
    * Since 1.2: opens an encrypted query result with this device's own key,
-   * through the `agentKey` its provider wrapped for it, and since 1.2 (rc.4) the
+   * through the `agentKey` its provider wrapped for it, and since 1.2 the
    * statements in its cosignatures through `agentKey.cosignatureKeys`. Who signed it is checked
    * as a server checks it on arrival (a delegation and its attestation too), and
    * the document as any decrypted one is.

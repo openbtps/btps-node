@@ -1247,7 +1247,7 @@ export class BtpsServer {
       this.keyChains,
     );
     if (!isValid || artifact.cosignatures === undefined) return { isValid, error };
-    // Since 1.2 (rc.4): every cosignature it carries, checked here as its own signature is, without decrypting.
+    // Since 1.2: every cosignature it carries, checked here as its own signature is, without decrypting.
     const problem = await cosignaturesProblem(
       artifact,
       async (identity, selector, _fingerprint, forwarded) => {

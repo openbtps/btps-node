@@ -62,7 +62,7 @@ import {
  * Since 1.2: an agreement's evidence bundle (format `btps-evidence/1`). A
  * device cosignature's delegated artifact is a whole transporter artifact,
  * though the schema checks only what its signatures need. `statements[i]` is
- * `cosignatures[i]`'s opened statement, as the exact text it signed (rc.4).
+ * `cosignatures[i]`'s opened statement, as the exact text it signed.
  */
 export type BTPEvidenceBundle = Omit<z.infer<typeof BtpEvidenceBundleSchema>, 'cosignatures'> & {
   cosignatures: BTPCosignature[];
@@ -86,7 +86,7 @@ export type BTPEvidenceKeyChain = {
   operatorAnswer?: BTPServerResponse;
 };
 
-/** Since 1.2: when the bundle's builder received a cosignature (rc.4), signed by it at the time. */
+/** Since 1.2: when the bundle's builder received a cosignature, signed by it at the time. */
 export type BTPEvidenceArrival = {
   cosignatureSha256: string;
   arrivedAt: string;
@@ -178,7 +178,7 @@ export type BTPEvidenceFacts = {
     /** For a device: who signed its delegation, and who attested it, if anyone */
     delegatedBy?: string;
     attestedBy?: string;
-    /** Since rc.4: its opened statement is the exact text its cosignature signed, and says what it says */
+    /** Since 1.2: its opened statement is the exact text its cosignature signed, and says what it says */
     statementMatches: boolean;
     signer: string;
     /** What it decided, from its opened statement; absent when that is not the statement it signed */

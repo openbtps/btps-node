@@ -87,7 +87,7 @@ describe("a device's own key to an encrypted result", () => {
     ).toBe(false);
   });
 
-  it("carries each cosignature's key by position, with or without the document's (rc.4)", () => {
+  it("carries each cosignature's key by position, with or without the document's", () => {
     const { key: _key, ...noDocumentKey } = agentKey;
     for (const withCosignatures of [
       { ...agentKey, cosignatureKeys: ['AA==', null] },

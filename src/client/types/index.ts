@@ -134,7 +134,7 @@ export type BtpsAgentCommandOptions = BTPCryptoOptions & {
   /** Since 1.2, on `trust.respond` only, and only when accepting: the permission names granted. */
   granted?: BTPPermissionName[];
   /**
-   * Since 1.2 (rc.4), on `event.send` only: the cosignatures the event carries, as `cosign` makes them, signed by
+   * Since 1.2, on `event.send` only: the cosignatures the event carries, as `cosign` makes them, signed by
    * whoever signed each: an answer's own (signed on a device with the device key, no `selector`), or those an
    * originator forwards. Every BTPS server checks them on receipt, as it checks any sender's.
    */

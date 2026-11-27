@@ -175,7 +175,7 @@ export function loadVectorSet(dir) {
   const agreementCases = {
     documents: ['type', 'version', 'document'],
     events: ['type', 'version', 'document'],
-    // Since rc.4: an opened statement, cosignatures as a server checks them, and one opened by its recipient.
+    // Since 1.2: an opened statement, cosignatures as a server checks them, and one opened by its recipient.
     cosigned: ['value'],
     envelopes: ['artifact'],
     cosignatures: ['artifact', 'keys'],

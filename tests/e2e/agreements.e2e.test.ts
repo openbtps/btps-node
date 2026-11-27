@@ -6,7 +6,7 @@
  */
 
 // Journey: an agreement, end to end. A bank sends a loan agreement to two
-// signers, in turn. Each answers with a cosignature (rc.4): its statement
+// signers, in turn. Each answers with a cosignature: its statement
 // encrypted once to every party, then signed. The receiving server checks
 // every cosignature in flight, without decrypting, and refuses a forged one;
 // the bank's platform checks each answer's turn (agreementOrderCheck): an

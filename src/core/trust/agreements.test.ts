@@ -8,7 +8,7 @@
 /*
  * BTPS 1.2: agreements are signed over their content. The originator signs
  * it once for every copy, and each signer cosigns a statement naming it
- * (rc.4: encrypted once to every party, then signed over its ciphertext), with
+ * (encrypted once to every party, then signed over its ciphertext), with
  * its identity key or a device key its delegation vouches for.
  */
 

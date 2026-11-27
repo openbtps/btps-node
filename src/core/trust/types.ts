@@ -244,7 +244,7 @@ export type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
   terms: string[];
   signer: string;
-  /** Since rc.4: the artifact that first delivers it (a device's: its delegated artifact), as its cosignature names it. */
+  /** Since 1.2: the artifact that first delivers it (a device's: its delegated artifact), as its cosignature names it. */
   artifactId: string;
   decision: 'accepted' | 'declined';
   signedAt: string;
@@ -301,7 +301,7 @@ export type BTPElectronicConsent = {
 };
 
 /**
- * Since 1.2 (rc.4): a party's signed statement about a document, as a
+ * Since 1.2: a party's signed statement about a document, as a
  * `BTPS_EVENT` carries it outside its own encrypted document, so every BTPS
  * server checks it on receipt without decrypting. Its statement, padded to its
  * size bucket (cosignedStatementText), is encrypted once to every `recipients`
@@ -333,7 +333,7 @@ export type BTPCosignature = {
   | { selector?: never; delegatedArtifact?: never }
 );
 
-/** Since 1.2 (rc.4): one party a cosignature's record is encrypted to: its content key, wrapped to that party's key. */
+/** Since 1.2: one party a cosignature's statement is encrypted to: its content key, wrapped to that party's key. */
 export type BTPCosignatureRecipient = {
   identity: string;
   /** The SHA-256 fingerprint of the key it is wrapped to, as getFingerprintFromPem gives it */

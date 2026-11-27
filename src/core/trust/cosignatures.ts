@@ -6,7 +6,7 @@
  */
 
 /*
- * Since 1.2 (rc.4): cosignatures. A party's signed statement about a document travels outside the event's encrypted
+ * Since 1.2: cosignatures. A party's signed statement about a document travels outside the event's encrypted
  * document, the way BTPS signs everything else: encrypted first, then signed (signEncrypt, decryptVerify). Its
  * statement is encrypted once, to the originator and every signer, and its signer signs the cosignature over that
  * ciphertext and the statement's SHA-256. The originator forwards it unchanged, so every BTPS server on the way
@@ -60,7 +60,7 @@ export const cosignatureSignedPart = (cosignature: BTPCosignature) =>
   );
 
 /**
- * Since 1.2 (rc.4): the SHA-256, lowercase hex, of a cosignature's RFC 8785 form, signature included, without a
+ * Since 1.2: the SHA-256, lowercase hex, of a cosignature's RFC 8785 form, signature included, without a
  * forwarded device's delegated artifact (added after it was signed): what the next one names as `previous`.
  */
 export const cosignatureSha256 = (cosignature: BTPCosignature): string =>
@@ -73,7 +73,7 @@ export const cosignatureSha256 = (cosignature: BTPCosignature): string =>
   );
 
 /**
- * Since 1.2 (rc.4): a statement as a cosignature encrypts it, as exact text: RFC 8785 of `{ statement, padding }`,
+ * Since 1.2: a statement as a cosignature encrypts it, as exact text: RFC 8785 of `{ statement, padding }`,
  * `padding` being '0's up to the next multiple of the bucket (BTPS_FIELD_LIMITS.agreement.statementPaddingBucket), so
  * its length does not tell its decision. The same statement always gives the same text: an evidence bundle keeps it.
  */
@@ -92,7 +92,7 @@ const sign = (payload: unknown, key: SigningKey): Promise<BTPSignature> =>
     : Promise.resolve(signBtpPayload(payload, key.pemFiles));
 
 /**
- * Since 1.2 (rc.4): a signer's cosignature on `statement`, encrypted to every one of `recipients` (the originator,
+ * Since 1.2: a signer's cosignature on `statement`, encrypted to every one of `recipients` (the originator,
  * each signer, and the signer itself, by their public keys, PEM) and signed. `selector` is the signer's identity key's;
  * a device leaves it out and signs with its own key, in the delegated artifact that delivers it. The statement's
  * `artifactId` is that artifact's id, and its `previous` the SHA-256 (cosignatureSha256) of the one before it.
@@ -223,7 +223,7 @@ const signatureProblem = async (
 };
 
 /**
- * Since 1.2 (rc.4): why the cosignatures `artifact` carries are not what they say, or undefined, checked as a BTPS
+ * Since 1.2: why the cosignatures `artifact` carries are not what they say, or undefined, checked as a BTPS
  * server checks them on receipt, without decrypting. Each is signed by its signer (or a device its delegation vouches
  * for); all name one document; no signer appears twice; each one that names `previous` follows the one before it.
  * Its document's originator forwards any of them (its own among them, when it signs too); anyone else carries only its
@@ -281,7 +281,7 @@ const unwrap = async (wrappedKey: string, key: BTPDecryptionKey): Promise<Buffer
 };
 
 /**
- * Since 1.2 (rc.4): the statement in `cosignature`, opened by `receiver` with its key: undefined when it is not one of
+ * Since 1.2: the statement in `cosignature`, opened by `receiver` with its key: undefined when it is not one of
  * its recipients; a problem when it is and the statement does not open, or is not exactly what was signed (its
  * SHA-256, its RFC 8785 form) and what its cosignature says (its document, signer, artifact and previous).
  */
@@ -316,7 +316,7 @@ export const openCosignature = async (
 };
 
 /**
- * Since 1.2 (rc.4): why `value` is not a cosignature's opened statement, `{ statement, padding }`, as the protocol
+ * Since 1.2: why `value` is not a cosignature's opened statement, `{ statement, padding }`, as the protocol
  * holds one: the statement's own rules (its decision, its visual signature and consent on an acceptance only, its
  * times and where it was signed from) and its padding. Undefined when it is.
  */
@@ -326,7 +326,7 @@ export const cosignedStatementProblem = (value: unknown): string | undefined => 
 };
 
 /**
- * Since 1.2 (rc.4): the statement in `text`, a cosignature's opened statement as exact text (an evidence bundle keeps
+ * Since 1.2: the statement in `text`, a cosignature's opened statement as exact text (an evidence bundle keeps
  * it so), or the problem: not the text it signed (its SHA-256), not in its one form (RFC 8785), or not what its
  * cosignature says (its document, signer, artifact and previous).
  */

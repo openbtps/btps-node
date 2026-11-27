@@ -326,7 +326,7 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
           }),
         ),
       ),
-      // Since rc.4: a cosignature's opened statement, held to the statement's own rules and its padding.
+      // Since 1.2: a cosignature's opened statement, held to the statement's own rules and its padding.
       ...agreements.cosigned.map((c) =>
         check(`agreements/cosigned/${c.name}`, () => {
           const problem = named('cosignedStatementProblem')(c.value);
@@ -341,7 +341,7 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
           else ensure(!success, `accepted; expected it refused: ${c.why}`);
         }),
       ),
-      // Since rc.4: cosignatures as every BTPS server checks them on receipt, without decrypting, by the keys given.
+      // Since 1.2: cosignatures as every BTPS server checks them on receipt, without decrypting, by the keys given.
       ...agreements.cosignatures.map((c) =>
         check(`agreements/cosignatures/${c.name}`, async () => {
           const keyOf = async (identity, selector) =>
@@ -351,7 +351,7 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
           else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
         }),
       ),
-      // Since rc.4: a cosignature opened by a recipient with its key: exactly what was signed, or refused.
+      // Since 1.2: a cosignature opened by a recipient with its key: exactly what was signed, or refused.
       ...agreements.opened.map((c) =>
         check(`agreements/opened/${c.name}`, async () => {
           const result = await named('openCosignature')(c.cosignature, {

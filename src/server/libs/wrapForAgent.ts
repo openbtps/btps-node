@@ -17,7 +17,7 @@ import { base64ToPem } from '@core/utils/index.js';
 /**
  * Since 1.2: an encrypted artifact's content key, unwrapped with the identity's
  * key and wrapped again to one of its devices, for a query result's `agentKey`.
- * Since 1.2 (rc.4), each cosignature's content key too (`cosignatureKeys`), so
+ * Since 1.2, each cosignature's content key too (`cosignatureKeys`), so
  * the device opens the statements addressed to its identity; an unencrypted
  * artifact with cosignatures gets those alone. The artifact is untouched. It
  * always wraps to the key the device's record holds now, and names that key's

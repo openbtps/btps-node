@@ -103,7 +103,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   granted: namesFrom(PERMISSION_NAMES).optional(),
   documentType: z.enum(DOCUMENT_TYPES).optional(),
   details: namesFrom(DETAIL_PERMISSIONS, 1).optional(),
-  // Since 1.2 (rc.4): parties' signed statements, outside the encrypted document (core/trust/cosignatures.ts).
+  // Since 1.2: parties' signed statements, outside the encrypted document (core/trust/cosignatures.ts).
   cosignatures: boundedArray(BtpCosignatureSchema, BTPS_FIELD_LIMITS.agreement.signers).optional(),
 });
 
@@ -249,7 +249,7 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
         });
       }
     }
-    // Since 1.2 (rc.4): cosignatures ride only on an event, in a 1.2.0 artifact, and at least one.
+    // Since 1.2: cosignatures ride only on an event, in a 1.2.0 artifact, and at least one.
     if (data.cosignatures !== undefined) {
       const problem =
         data.type !== 'BTPS_EVENT'

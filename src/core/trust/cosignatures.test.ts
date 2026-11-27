@@ -6,7 +6,7 @@
  */
 
 /*
- * BTPS 1.2 (rc.4): a cosignature is encrypted once to every party, then signed over its ciphertext. Every server
+ * BTPS 1.2: a cosignature is encrypted once to every party, then signed over its ciphertext. Every server
  * checks it without decrypting; whoever opens it checks that what it opened is exactly what was signed.
  */
 

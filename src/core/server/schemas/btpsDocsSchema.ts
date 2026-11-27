@@ -552,7 +552,7 @@ const BtpAcceptanceSchema = z
 /**
  * Since 1.2, under 1.2.0 only: an agreement, a letter that asks its signers to
  * accept it. Its content is everything but `originatorSignature`, which is its
- * originator's signature over `{ originator, id, contentSha256 }`. Since rc.4,
+ * originator's signature over `{ originator, id, contentSha256 }`. Since 1.2,
  * `salt`: 32 random bytes, so its `contentSha256`, readable on every
  * cosignature, cannot confirm a guess at a standard agreement's text.
  */
@@ -808,7 +808,7 @@ export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.Zod
       agreement: BtpAgreementRefSchema,
       terms: boundedArray(sha256Hex, letter.attachments),
       signer: identitySchema,
-      // Since rc.4: the artifact that first delivers it, as its cosignature names it; a device's is its delegated artifact.
+      // Since 1.2: the artifact that first delivers it, as its cosignature names it; a device's is its delegated artifact.
       artifactId: z.string().uuid(),
       decision: z.enum(['accepted', 'declined']),
       signedAt: z.string().datetime(),
@@ -842,7 +842,7 @@ export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.Zod
     });
 
 /**
- * Since 1.2 (rc.4): the delegated artifact a device's cosignature came in, as it arrived, which its originator adds when
+ * Since 1.2: the delegated artifact a device's cosignature came in, as it arrived, which its originator adds when
  * it forwards the cosignature: what its delegation and attestation are checked over (cosignaturesProblem).
  */
 const BtpDelegatedArtifactSchema = z
@@ -862,7 +862,7 @@ const BtpDelegatedArtifactSchema = z
   .passthrough();
 
 /**
- * Since 1.2 (rc.4): a cosignature's encrypted part, once decrypted: the statement, and padding to its size bucket so
+ * Since 1.2: a cosignature's encrypted part, once decrypted: the statement, and padding to its size bucket so
  * its length does not tell an acceptance from a decline. A cosignature's `statementSha256` is the SHA-256 of these
  * exact bytes (RFC 8785), and its signature is over that hash: so the statement is its signer's, exactly, with no
  * second signature inside.
@@ -883,7 +883,7 @@ const BtpCosignatureRecipientSchema = z
   .strict();
 
 /**
- * Since 1.2 (rc.4): a party's signed statement about a document, outside the event's encrypted document: what
+ * Since 1.2: a party's signed statement about a document, outside the event's encrypted document: what
  * every BTPS server checks on receipt (cosignaturesProblem), without decrypting. Signed by its signer's identity key
  * at `selector`, or by a device, with the delegated artifact that first delivered it.
  */
@@ -934,7 +934,7 @@ const agreementEventFields = {
 };
 
 /**
- * An agreement's answer, or its originator's forward, by `eventType`. Since rc.4 its statements are not in it: they
+ * An agreement's answer, or its originator's forward, by `eventType`. Its statements are not in it: they
  * travel as the event's `cosignatures`, outside its encrypted document.
  */
 export const BtpAgreementEventSchema = z.discriminatedUnion('eventType', [
@@ -997,7 +997,7 @@ const BtpEvidenceArrivalSchema = z
 /**
  * Since 1.2: an agreement's evidence bundle, a file a party creates to show
  * what was agreed: the opened agreement with its originator's signature,
- * every signer's cosignature in order as it travelled (rc.4), each one's
+ * every signer's cosignature in order as it travelled, each one's
  * opened statement (`statements[i]` is the record whose exact bytes hash to
  * `cosignatures[i].statementSha256`), and the public key behind each
  * signature, so it checks offline. It holds no decryption key.

@@ -8,7 +8,7 @@
 /*
  * Since 1.2: RFC 3161 trusted timestamps on an agreement's statements. A
  * provider asks a timestamp authority to sign the SHA-256 of a cosignature
- * (rc.4: cosignatureSha256), and only that hash leaves it, never the content. A token proves the
+ * (cosignatureSha256), and only that hash leaves it, never the content. A token proves the
  * statement existed by its time, so it cannot be made later and backdated,
  * and keeps proving it after the signer's key rotates. Which authorities to
  * trust is each platform's choice; BTPS reports facts.
