@@ -44,7 +44,7 @@ describe('BtpArtifactServerSchema', () => {
       issuedAt: '2024-01-01T00:00:00.000Z',
       signature: {
         algorithmHash: 'sha256',
-        value: 'test-signature',
+        value: 'dGVzdC1zaWduYXR1cmU=',
         fingerprint: 'test-fingerprint',
       },
       encryption: null,
@@ -64,7 +64,7 @@ describe('BtpArtifactServerSchema', () => {
       to: 'bob$example.com',
       signature: {
         algorithmHash: 'sha256',
-        value: 'test-signature',
+        value: 'dGVzdC1zaWduYXR1cmU=',
         fingerprint: 'test-fingerprint',
       },
       encryption: null,

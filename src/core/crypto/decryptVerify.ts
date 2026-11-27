@@ -11,6 +11,9 @@ import { BTP_ERROR_SIG_VERIFICATION } from '@core/error/constant.js';
 import { boundViewResultOf } from '@core/server/schemas/boundViewChecks.js';
 import { checkDecryptedDocument } from './documentChecks.js';
 import isEmpty from 'lodash/isEmpty.js';
+import { sameIdentity } from '@core/server/schemas/helpers.js';
+import { openCosignature } from '@core/trust/cosignatures.js';
+import type { BTPAgreementRef, BTPAgreementStatement, BTPCosignature } from '@core/trust/types.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
   payload: undefined,
@@ -87,9 +90,45 @@ export const decryptVerify = async <T = unknown>(
   const boundView =
     restEncryptedPayload.type === 'BTPS_DOC' ? boundViewResultOf(decryptedData) : undefined;
 
+  // Since 1.2 (rc.4): each cosignature the receiver is a recipient of, opened and held to what it signed.
+  const cosigned = await openedCosignatures(restEncryptedPayload, decryptedData, receiverKey);
+  if (cosigned instanceof BTPErrorException) return genDecryptError(cosigned);
+
   return {
     payload: decryptedPayload as BTPCryptoResponse<T>['payload'],
     error: undefined,
     ...(boundView && { boundView }),
+    ...(cosigned && { cosigned }),
   };
+};
+
+/**
+ * Since 1.2 (rc.4): the statements in an event's cosignatures, by position: each one the receiver (`to`) is a
+ * recipient of, opened with its key and held to its cosignature (openCosignature), and null for one it is not. They
+ * must all name the document the opened event is about. An error when one that is the receiver's does not hold.
+ */
+const openedCosignatures = async (
+  artifact: Record<string, unknown>,
+  opened: unknown,
+  receiverKey: BTPDecryptionKey | undefined,
+): Promise<(BTPAgreementStatement | null)[] | BTPErrorException | undefined> => {
+  const cosignatures = artifact.cosignatures as BTPCosignature[] | undefined;
+  if (cosignatures === undefined || receiverKey === undefined || typeof artifact.to !== 'string') return undefined;
+  const fail = (reason: string) => new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason } });
+  const about = (opened as { agreement?: BTPAgreementRef } | undefined)?.agreement;
+  const statements: (BTPAgreementStatement | null)[] = [];
+  for (const cosignature of cosignatures) {
+    if (
+      about === undefined ||
+      !sameIdentity(about.originator, cosignature.ref.originator) ||
+      about.id !== cosignature.ref.id ||
+      about.contentSha256 !== cosignature.ref.contentSha256
+    ) {
+      return fail('a cosignature names the document its event is about');
+    }
+    const result = await openCosignature(cosignature, { identity: artifact.to, key: receiverKey });
+    if (result !== undefined && 'problem' in result) return fail(`a cosignature for you: ${result.problem}`);
+    statements.push(result === undefined ? null : result.statement);
+  }
+  return statements;
 };

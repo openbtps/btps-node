@@ -58,7 +58,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
     to: 'user$domain.com',
     signature: {
       algorithmHash: 'sha256',
-      value: 'sig',
+      value: 'c2ln',
       fingerprint: 'fp',
     },
   };
