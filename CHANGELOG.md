@@ -4,6 +4,117 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.5] — 2026-11-27 (beta, release candidate)
+
+An agreement's statements travel as cosignatures on the event's envelope,
+encrypted once to the originator and every signer and then signed, so every
+BTPS server verifies them on receipt without decrypting. Who signed, and in
+what order, stay readable; what each signer said stays encrypted. This changes
+the agreement wire format between candidates: agreement artifacts made with
+earlier candidates are not accepted by rc.3.5. Everything else is as in rc.3.4
+below; `@btps/boundview` is released in step, unchanged.
+
+### Added
+
+- **Cosignatures.** A `BTPS_EVENT` envelope carries `cosignatures`, `1.2.0`
+  only, 1 to 20 (new types `BTPCosignature` and `BTPCosignatureRecipient`). A
+  signer's answer carries its own; the originator's forwards carry the ones
+  they forward, in order and unchanged. Each cosignature's statement is
+  encrypted once with AES-256-GCM, its key wrapped with RSA-OAEP to the
+  originator and every signer, and the cosignature is then signed over that
+  ciphertext and `statementSha256`. See
+  [Cosignatures](https://www.openbtps.org/docs/next/protocol/specifications/transporter-artifact#cosignatures).
+- The encrypted text is the RFC 8785 form of `{ statement, padding }`, padded
+  with `0`s to a multiple of 4096 characters, so its length does not tell an
+  acceptance from a decline. There is no signature inside it: the outer
+  signature covers `statementSha256`, which binds the signer to every byte of
+  the statement. `cosignatureSha256` is the chain hash: what the next
+  statement names as `previous`, and what timestamps and arrivals are over.
+- Every BTPS server verifies an artifact's cosignatures on receipt, inside
+  signature verification (`cosignaturesProblem`): each signature, by the
+  signer's identity key or under the device rules; all name one document; a
+  signer cosigns once; one that names `previous` follows the one before it;
+  only the document's originator forwards other signers' cosignatures. See
+  [What every server checks on receipt](https://www.openbtps.org/docs/next/protocol/specifications/transporter-artifact#what-every-server-checks-on-receipt).
+- A forwarded cosignature, one whose `artifactId` is not the carrying
+  artifact's id, is checked by its key's history: a key rotated away as
+  planned still holds, and a compromised key is always refused. A cosignature
+  made now keeps the live rules, the grace period included. See
+  [Checking keys on arrival](https://www.openbtps.org/docs/next/protocol/specifications/key-rotation#checking-keys-on-arrival).
+- `decryptVerify` opens the cosignatures addressed to the receiver and returns
+  their statements in `cosigned`, by position (`null` where the receiver is
+  not a recipient), each held to exactly the text that was signed. A
+  cosignature addressed to the receiver is refused, never skipped, when no key
+  is given. It gains a 5th parameter, `cosignatureKeys`, the content keys a
+  provider wrapped for a device. See
+  [decryptVerify](https://www.openbtps.org/docs/next/sdk/api-references#decryptverify).
+- Devices send and open cosignatures:
+  `BtpsAgent.command('event.send', …, { cosignatures })` sends them, and
+  `cosign` takes a keystore `Signer`. `wrapForAgent` gains a 4th parameter,
+  `identity` (the artifact's `to` by default), and also wraps for an
+  unencrypted artifact that has cosignatures. `agentKey.cosignatureKeys`
+  carries each cosignature's content key, wrapped to the device key, and
+  `agentKey.key` is now optional. `openResult` returns `cosigned`, and
+  `openCosignature`'s receiver can take that `wrappedKey`. See
+  [Cosignatures on a device](https://www.openbtps.org/docs/next/features/devices#cosignatures-on-a-device).
+- `@btps/sdk/trust` exports `cosign`, `cosignatureSha256`,
+  `cosignatureSignedPart`, `cosignedStatementText`, `cosignaturesProblem`,
+  `openCosignature`, `statementOfText` and `cosignedStatementProblem`, and the
+  types `BTPCosignature`, `BTPCosignatureRecipient` and `BTPCosignatureKeyOf`,
+  whose `forwarded` parameter says a cosignature's key is taken by its
+  history. See
+  [cosign](https://www.openbtps.org/docs/next/sdk/api-references#cosign-cosignaturesha256-cosignaturesignedpart-cosignedstatementtext).
+- Limits: `BTPS_FIELD_LIMITS.agreement.statementPaddingBucket` (4096) and
+  `BTPS_FIELD_LIMITS.agreement.cosignatureCiphertextChars` (262144). See
+  [Agreement](https://www.openbtps.org/docs/next/protocol/specifications/limits#agreement).
+
+### Changed
+
+- **Breaking between candidates.** Agreement artifacts made with earlier
+  candidates are not accepted by rc.3.5. Nothing a 1.1 artifact sends or
+  receives changes, and signature schemas are as in rc.3.4.
+- `agreement_event` documents no longer carry `statement` or `statements`; the
+  statements travel as cosignatures.
+- An agreement statement gains a required `artifactId`: the artifact that
+  first delivers it (a device's delegated artifact), so a stolen device key
+  cannot pair a fresh statement with an old delegation.
+- An agreement gains a required `salt`: 32 random bytes inside the encrypted
+  content, so the `contentSha256` readable on every cosignature cannot confirm
+  a guess at a standard agreement's text.
+- These take cosignatures, with their opened statements where they need them,
+  where they took statement records:
+  `agreementStatementProblem(envelope, answer, agreement, earlier)`, whose
+  `answer` is `{ eventType, agreement, cosignature, statement }` and whose
+  `earlier` holds `{ cosignature, statement }` pairs;
+  `timestampRequest(cosignature)`; and
+  `buildEvidenceBundle({ originator, agreement, cosignatures, statements })`.
+  See
+  [agreementStatementProblem](https://www.openbtps.org/docs/next/sdk/api-references#agreementstatementproblem-agreementorderproblem).
+- An evidence bundle holds `cosignatures` and `statements`, each statement's
+  exact text. Its facts gain `statementMatches`, and `decision` is absent when
+  the statement does not match its cosignature. The published JSON Schema is
+  updated. `btps-verify-evidence` reads the new bundle, and refuses a bundle in
+  the earlier candidates' format as not an evidence bundle (exit 2). See
+  [The bundle](https://www.openbtps.org/docs/next/features/evidence-bundles#the-bundle).
+- Golden vectors: `agreements.vectors.json` is rewritten, with the new
+  sections `cosigned`, `cosignatures`, `opened` and `cosignatureSha256`
+  (which replaces `statementSha256`). The suite is 828 checks. See
+  [Golden vectors](https://www.openbtps.org/docs/next/protocol/specifications/golden-vectors).
+
+### Removed
+
+- `signStatement` and `signStatementOnDevice`: use `cosign`, with the signer's
+  `selector`, or on a device without one.
+- `deviceStatementRecord`: a device's cosignature is forwarded by the
+  originator with its `delegatedArtifact`.
+- `statementSignatureFacts`: `cosignaturesProblem` checks cosignatures on
+  receipt, and `verifyEvidenceBundle` reports each one's facts.
+- `statementRecordSha256`: use `cosignatureSha256`.
+- Types `BTPStatementRecord`, now `BTPCosignature`, and
+  `BTPStatementSignatureFacts`, now each entry of `BTPEvidenceFacts`'
+  `statements`.
+- Schema `BtpStatementRecordSchema`, now `BtpCosignatureSchema`.
+
 ## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
 
 A platform can decrypt, encrypt, sign and verify a large payload a piece at a
