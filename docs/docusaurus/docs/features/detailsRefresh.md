@@ -10,11 +10,11 @@ slug: details-refresh
 
 **What it is.** Each side of an active trust with [permissions](./trustPermissions.md) can tell the other that its details changed, ask for them again, and answer, but only for the details it already holds by that trust. Three artifact types, each delivered like any other:
 
-| Type              | Says                  | Envelope (signed, readable)                                                     | Document                                                                                                                  |
-| ----------------- | --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `DETAILS_CHANGED` | "my details changed"  | `details`: the names that changed                                               | no values; an optional `message`; encrypted or not as the trust's [privacy type](#how-a-notice-and-a-request-travel) says |
-| `DETAILS_REQ`     | "send me these again" | `details`: the names wanted; `relatesTo` (optional): the notice it follows      | no values; an optional `message`; encrypted or not as the trust's [privacy type](#how-a-notice-and-a-request-travel) says |
-| `DETAILS_RES`     | "here they are"       | `details`: the names it answers; `relatesTo` (required): the request it answers | the values, by name, always encrypted                                                                                     |
+| Type              | Says                  | Envelope (signed, readable)                                                     | Document                              |
+| ----------------- | --------------------- | ------------------------------------------------------------------------------- | ------------------------------------- |
+| `DETAILS_CHANGED` | "my details changed"  | `details`: the names that changed                                               | no values; an optional `message`      |
+| `DETAILS_REQ`     | "send me these again" | `details`: the names wanted; `relatesTo` (optional): the notice it follows      | no values; an optional `message`      |
+| `DETAILS_RES`     | "here they are"       | `details`: the names it answers; `relatesTo` (required): the request it answers | the values, by name, always encrypted |
 
 **Why.** A business's address or a person's email changes. Rather than a new trust request, the side that holds a detail fetches it again, and only that detail: the record's `detailsHeld` (what this side holds of the other) and `detailsShared` (what it gave) bound every step, and the names are checked on the envelope without opening anything.
 
@@ -42,22 +42,9 @@ sequenceDiagram
     V->>V: decryptVerify: a value for each name, valid for it
 ```
 
-## How a notice and a request travel
-
-A notice and a request carry no values, but they travel under the trust's privacy type like any other artifact on it, and the receiving server checks it on arrival (`BTP_ERROR_PRIVACY_TYPE`). The privacy type is the one the trust was agreed with, on the receiver's own record of it, the record it checks the names against:
-
-| The trust's privacy type             | Send a `DETAILS_CHANGED` or `DETAILS_REQ`                                                                                      |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `encrypted`                          | encrypted to the receiver, as a document would be                                                                              |
-| `unencrypted`                        | unencrypted (`encryption: null`)                                                                                               |
-| `mixed`                              | unencrypted: either is taken, and there is nothing in it but the names, which are on the envelope anyway, and an optional note |
-| none (no privacy type on the record) | unencrypted: either is taken                                                                                                   |
-
-The `details` names stay on the envelope, signed and readable, whichever way the document goes, so the receiver checks them without decrypting anything. Encrypted, the document is the encrypted `{}`, or the encrypted note. A `DETAILS_RES` carries values, so it is always encrypted.
-
 ## The artifacts
 
-The notice under a `mixed` or `unencrypted` trust, readable, with no values (under an `encrypted` trust, its document is encrypted to the receiver as a document's is, and `encryption` says how):
+The notice, readable, with no values:
 
 ```json btps=transporter
 {
@@ -79,7 +66,7 @@ The notice under a `mixed` or `unencrypted` trust, readable, with no values (und
 }
 ```
 
-The request, following the notice, under the same trust:
+The request, following the notice:
 
 ```json btps=transporter
 {
