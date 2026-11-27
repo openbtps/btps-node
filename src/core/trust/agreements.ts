@@ -132,7 +132,7 @@ export const agreementOrderProblem = (
   const last = held.answered[held.answered.length - 1];
   if (previous === last?.sha256) return undefined;
   return last
-    ? 'previous is the SHA-256 of the statement record before it'
+    ? 'previous is the SHA-256 of the cosignature before it'
     : 'the first statement names no previous';
 };
 

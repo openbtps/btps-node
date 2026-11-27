@@ -265,6 +265,8 @@ export const statementOfText = (
   }
   const opened = BtpCosignedStatementSchema.safeParse(parsed);
   if (!opened.success || canonicalizeValue(parsed) !== text) return { problem: 'its statement is not in its one form' };
+  // Padded as it must be: '0's only, up to a whole bucket, as cosignedStatementText makes it.
+  if (text !== cosignedStatementText(opened.data.statement)) return { problem: 'its statement is not padded to its bucket' };
   const { statement } = opened.data;
   if (!sameRef(statement.agreement, cosignature.ref)) return { problem: 'its statement names another document' };
   if (!sameIdentity(statement.signer, cosignature.signer)) return { problem: "its statement is another signer's" };

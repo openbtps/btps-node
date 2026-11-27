@@ -676,7 +676,7 @@ export const verifyEvidenceBundle = async (
 
 /**
  * Since 1.2: an agreement's evidence bundle, from the opened agreement, its
- * statement records in the order they were taken, and the keys `keyOf` gives:
+ * cosignatures in the order they were taken and their statements, and the keys `keyOf` gives:
  * the originator's, each signer's, and each device's delegator and attestor.
  * A key it cannot find is refused (`BTP_ERROR_RESOLVE_PUBKEY`): a bundle
  * without it would not check offline.

@@ -983,7 +983,7 @@ const BtpEvidenceKeyChainSchema = z
   })
   .strict();
 
-/** Since 1.2: when the bundle's builder received a cosignature (rc.4; a statement record before), signed by it at the time. */
+/** Since 1.2: when the bundle's builder received a cosignature, signed by it at the time. */
 const BtpEvidenceArrivalSchema = z
   .object({
     cosignatureSha256: sha256Hex,

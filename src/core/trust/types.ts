@@ -303,10 +303,10 @@ export type BTPElectronicConsent = {
 /**
  * Since 1.2 (rc.4): a party's signed statement about a document, as a
  * `BTPS_EVENT` carries it outside its own encrypted document, so every BTPS
- * server checks it on receipt without decrypting. Its statement record (the
- * statement and the signer's signature over it, as `signStatement` makes it,
- * padded) is encrypted once to every `recipients` identity; the signer then
- * signs the cosignature over that ciphertext (encrypt, then sign). It is
+ * server checks it on receipt without decrypting. Its statement, padded to its
+ * size bucket (cosignedStatementText), is encrypted once to every `recipients`
+ * identity; the signer then signs the cosignature over that ciphertext and the
+ * statement's SHA-256 (encrypt, then sign). It is
  * forwarded unchanged, so its signature holds at every hop. `previous` is the
  * SHA-256 of the cosignature before it in a sequential chain, and
  * `statementSha256` the SHA-256 of the encrypted record's exact bytes.
