@@ -28,9 +28,14 @@ const ACME = 'billing$acme.example';
 const BOB = 'bob$x.example';
 const CAROL = 'carol$y.example';
 const MALLORY = 'mallory$z.example';
-const keys = { [ACME]: keyPair(), [BOB]: keyPair(), [CAROL]: keyPair(), [MALLORY]: keyPair() };
-const keyOf = async (identity: string) => keys[identity as keyof typeof keys]?.publicKey;
-const parties = [ACME, BOB, CAROL].map((identity) => ({ identity, publicKey: keys[identity].publicKey }));
+const keys: Record<string, ReturnType<typeof keyPair>> = {
+  [ACME]: keyPair(),
+  [BOB]: keyPair(),
+  [CAROL]: keyPair(),
+  [MALLORY]: keyPair(),
+};
+const keyOf = async (identity: string) => keys[identity]?.publicKey;
+const parties = [ACME, BOB, CAROL].map((identity) => ({ identity, publicKey: keys[identity]!.publicKey }));
 const ref = { originator: ACME, id: 'agr-9', contentSha256: 'a'.repeat(64) };
 
 const statementOf = (signer: string, artifactId: string, more: Partial<BTPAgreementStatement> = {}): BTPAgreementStatement => ({
@@ -43,11 +48,11 @@ const statementOf = (signer: string, artifactId: string, more: Partial<BTPAgreem
   ...more,
 });
 
-const cosignBy = (signer: keyof typeof keys, artifactId = randomUUID(), more: Partial<BTPAgreementStatement> = {}) =>
+const cosignBy = (signer: string, artifactId = randomUUID(), more: Partial<BTPAgreementStatement> = {}) =>
   cosign({
     statement: statementOf(signer, artifactId, more),
     recipients: parties,
-    by: { selector: 'btps1', pemFiles: keys[signer] },
+    by: { selector: 'btps1', pemFiles: keys[signer]! },
   });
 
 /** An event carrying `cosignatures`, from `from`, under the artifact id `id`. */
@@ -111,7 +116,7 @@ describe('a cosignature', () => {
     const other = await cosign({
       statement: { ...statementOf(CAROL, randomUUID()), agreement: { ...ref, id: 'agr-10' } },
       recipients: parties,
-      by: { selector: 'btps1', pemFiles: keys[CAROL] },
+      by: { selector: 'btps1', pemFiles: keys[CAROL]! },
     });
     expect(await cosignaturesProblem(event(ACME, randomUUID(), [bob, other]), keyOf)).toMatch(/one document/);
   });
@@ -119,10 +124,10 @@ describe('a cosignature', () => {
   it('opens for each recipient to exactly what was signed, and for no one else', async () => {
     const bob = await cosignBy(BOB);
     for (const identity of [ACME, BOB, CAROL]) {
-      const opened = await openCosignature(bob, { identity, key: keys[identity].privateKey });
+      const opened = await openCosignature(bob, { identity, key: keys[identity]!.privateKey });
       expect(opened && 'statement' in opened && opened.statement.decision).toBe('accepted');
     }
-    expect(await openCosignature(bob, { identity: MALLORY, key: keys[MALLORY].privateKey })).toBeUndefined();
+    expect(await openCosignature(bob, { identity: MALLORY, key: keys[MALLORY]!.privateKey })).toBeUndefined();
   });
 
   it("is refused on opening when copied under another signer's name, or when its key is wrong for you", async () => {
@@ -131,15 +136,15 @@ describe('a cosignature', () => {
     const bob = await cosignBy(BOB);
     const { signature: _signature, ...unsigned } = bob;
     const copied = { ...unsigned, signer: MALLORY };
-    const forged = { ...copied, signature: signBtpPayload(copied, keys[MALLORY]) } as BTPCosignature;
-    const opened = await openCosignature(forged, { identity: ACME, key: keys[ACME].privateKey });
+    const forged = { ...copied, signature: signBtpPayload(copied, keys[MALLORY]!) } as BTPCosignature;
+    const opened = await openCosignature(forged, { identity: ACME, key: keys[ACME]!.privateKey });
     expect(opened && 'problem' in opened && opened.problem).toMatch(/another signer/);
     // Wrapped for Carol to a key she cannot open with.
     const wrongForCarol = {
       ...bob,
       recipients: bob.recipients.map((one) => (one.identity === CAROL ? { ...one, wrappedKey: bob.recipients[0]!.wrappedKey } : one)),
     };
-    const forCarol = await openCosignature(wrongForCarol, { identity: CAROL, key: keys[CAROL].privateKey });
+    const forCarol = await openCosignature(wrongForCarol, { identity: CAROL, key: keys[CAROL]!.privateKey });
     expect(forCarol && 'problem' in forCarol && forCarol.problem).toMatch(/does not open/);
   });
 
