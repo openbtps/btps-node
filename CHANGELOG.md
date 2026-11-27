@@ -70,12 +70,6 @@ below; `@btps/boundview` is released in step, unchanged.
 
 ### Changed
 
-- **Docs: how a details notice and request travel.** A `DETAILS_CHANGED` or
-  `DETAILS_REQ` goes under the trust's privacy type, as the server has always
-  checked it (`BTP_ERROR_PRIVACY_TYPE`): encrypted to the receiver under an
-  `encrypted` trust, unencrypted under an `unencrypted` or `mixed` one. The
-  docs said both always went unencrypted. No code changes. See
-  [How a notice and a request travel](https://www.openbtps.org/docs/next/features/details-refresh#how-a-notice-and-a-request-travel).
 - **Breaking between candidates.** Agreement artifacts made with earlier
   candidates are not accepted by rc.3.5. Nothing a 1.1 artifact sends or
   receives changes, and signature schemas are as in rc.3.4.

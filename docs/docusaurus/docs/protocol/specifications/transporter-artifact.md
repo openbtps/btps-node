@@ -265,19 +265,16 @@ Since 1.2. Each side of an active trust with permissions can be told when the ot
 
 Every step is its own artifact, delivered like any other, so a platform may queue it; nothing is answered at once.
 
-| Type              | Envelope (signed, readable)                                                          | Document                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `DETAILS_CHANGED` | `details`: the names that changed                                                    | no values; an optional `message` note; encrypted or not as the trust's privacy type says (below) |
-| `DETAILS_REQ`     | `details`: the names wanted; `relatesTo`, optional: the `DETAILS_CHANGED` it follows | no values; an optional `message` note; encrypted or not as the trust's privacy type says (below) |
-| `DETAILS_RES`     | `details`: the names it answers; `relatesTo`, required: the `DETAILS_REQ` it answers | the value of each name, keyed by name, always encrypted                                          |
+| Type              | Envelope (signed, readable)                                                          | Document                                                |
+| ----------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `DETAILS_CHANGED` | `details`: the names that changed                                                    | no values; an optional `message` note                   |
+| `DETAILS_REQ`     | `details`: the names wanted; `relatesTo`, optional: the `DETAILS_CHANGED` it follows | no values; an optional `message` note                   |
+| `DETAILS_RES`     | `details`: the names it answers; `relatesTo`, required: the `DETAILS_REQ` it answers | the value of each name, keyed by name, always encrypted |
 
 `details` holds `detail:` names only, each once, at least one. All three types are `1.2.0` only. A response may answer part of a request: it names only what it carries. A 1.1 server does not know these types: it refuses one as an artifact it cannot read (`BTP_ERROR_VALIDATION`), before it reads the version, so the sender is not told the receiver speaks 1.1. A trust with a 1.1 provider holds no details by name in any case.
 
-**How a notice and a request are sent.** They travel under the trust's privacy type like any other artifact on it: under an `encrypted` trust, encrypted to the receiver; under an `unencrypted` trust, unencrypted; under a `mixed` trust, or a record with no privacy type, either is taken, and unencrypted is enough, since neither carries values. The privacy type is the one on the receiver's own record of the trust, the record it checks the names against. The names stay on the envelope either way. A `DETAILS_RES` is always encrypted.
-
 **On arrival**, from the envelope and the receiver's own record of the trust, without decrypting:
 
-- a notice or a request is sent as the trust's privacy type says (`BTP_ERROR_PRIVACY_TYPE`);
 - a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
 - a response answers a request the receiver knows (`isKnownArtifact` on its `relatesTo`, `BTP_ERROR_PERMISSION`).
 
