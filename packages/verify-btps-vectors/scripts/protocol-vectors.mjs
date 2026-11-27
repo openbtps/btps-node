@@ -3478,12 +3478,6 @@ export function agreements(keys) {
     cosignedCase(refuse, 'statement-with-another-decision', aliceSays('maybe'), 'decision is accepted or declined'),
     cosignedCase(refuse, 'statement-without-a-time', aliceSays('accepted', { signedAt: undefined }), 'a statement has its signedAt'),
     cosignedCase(refuse, 'statement-without-its-artifact', aliceSays('accepted', { artifactId: undefined }), 'a statement names the artifact that delivers it (since rc.4)'),
-    cosignedCase(
-      refuse,
-      'statement-signer-not-in-lower-case',
-      aliceSays('accepted', { signer: 'Alice$Client.example' }),
-      'an identity in a signed agreement structure is written in lower case',
-    ),
     cosignedCase(refuse, 'padding-past-its-bucket', aliceSays('accepted'), 'padding is shorter than its bucket', '0'.repeat(PAD + 1)),
   ];
 
@@ -3541,20 +3535,6 @@ export function agreements(keys) {
       },
       'refuse',
       'its signer is one of its recipients',
-    ),
-    envelope(
-      'signature-in-another-base64-spelling',
-      {
-        ...answerEnvelope,
-        cosignatures: [
-          {
-            ...alice.cosignature,
-            signature: { ...alice.cosignature.signature, value: alice.cosignature.signature.value.replace(/=+$/, '') + ' ' },
-          },
-        ],
-      },
-      'refuse',
-      'base64 in its canonical form, so a signed object has one text and one hash',
     ),
   ];
 

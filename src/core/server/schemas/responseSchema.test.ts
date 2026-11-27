@@ -283,7 +283,7 @@ describe('BtpServerResponseSchema', () => {
       type: 'btps_response' as const,
       reqId: 'req-123',
       document: { selector: 'btps1', publicKey: 'public-key', keyType: 'rsa', version: '1.0.0' },
-      signature: { algorithmHash: 'sha256' as const, value: 'c2ln', fingerprint: 'fp' },
+      signature: { algorithmHash: 'sha256' as const, value: 'sig', fingerprint: 'fp' },
       signedBy: 'host$example.com',
       selector: 'btps1',
     };
@@ -312,7 +312,7 @@ describe('BtpServerResponseSchema', () => {
       document: 'document-value',
       signature: {
         algorithmHash: 'sha256' as const,
-        value: 'c2lnbmF0dXJlLXZhbHVl',
+        value: 'signature-value',
         fingerprint: 'fingerprint-value',
       },
       encryption: {

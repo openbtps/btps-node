@@ -34,7 +34,7 @@ const artifactWith = (document: unknown) =>
     from: 'billing$vendor.com',
     to: 'billing$customer.com',
     selector: 'btps1',
-    signature: { algorithmHash: 'sha256', value: 'c2ln', fingerprint: 'fp' },
+    signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
     encryption: null,
     document,
   }) as unknown as BTPTransporterArtifact;
