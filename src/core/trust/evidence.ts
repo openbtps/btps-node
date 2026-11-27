@@ -48,9 +48,10 @@ import type {
   BTPKeyChainKey,
   BTPKeyChainRecord,
   BTPKeyExpiryReason,
+  BTPAgreementStatement,
   BTPCosignature,
 } from './types.js';
-import { cosignatureSha256, cosignatureSignedPart, statementOfText } from './cosignatures.js';
+import { cosignatureSha256, cosignatureSignedPart, cosignedStatementText, statementOfText } from './cosignatures.js';
 
 /**
  * Since 1.2: an agreement's evidence bundle (format `btps-evidence/1`). A
@@ -693,7 +694,8 @@ export const verifyEvidenceBundle = async (
 export const buildEvidenceBundle = (
   parts: Pick<BTPEvidenceBundle, 'originator' | 'agreement'> & {
     cosignatures: BTPCosignature[];
-    statements: string[];
+    /** Each cosignature's statement, as decryptVerify opened it (`cosigned`); kept as the exact text it signed */
+    statements: BTPAgreementStatement[];
     keyChains?: BTPEvidenceKeyChain[];
     arrivals?: BTPEvidenceArrival[];
   },
@@ -747,7 +749,7 @@ export const buildEvidenceBundle = (
     originator,
     agreement,
     cosignatures,
-    statements,
+    statements: statements.map(cosignedStatementText),
     keys,
     ...(keyChains?.length && { keyChains }),
     ...(arrivals?.length && { arrivals }),
@@ -806,7 +808,7 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
       `${i + 1}. ${s.signer}: ${s.decision} (${key}${attested})`,
       `   key ${keyText(s.key)}`,
       ...(s.delegationKey ? [`   delegation key ${keyText(s.delegationKey)}`] : []),
-      `   signature ${mark(s.signatureValid)}, this agreement ${mark(s.agreementMatches)}`,
+      `   signature ${mark(s.signatureValid)}, the statement it signed ${mark(s.statementMatches)}, this agreement ${mark(s.agreementMatches)}`,
       `   these terms ${mark(s.termsMatch)}, by the deadline ${mark(s.withinDeadline)}, in order ${mark(s.inOrder)}`,
     );
     const stamp = s.timestamp;

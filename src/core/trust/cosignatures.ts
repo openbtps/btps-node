@@ -47,8 +47,12 @@ export const cosignatureSha256 = (cosignature: BTPCosignature): string =>
     canonicalizeValue(Object.fromEntries(Object.entries(cosignature).filter(([key]) => key !== 'delegatedArtifact'))),
   );
 
-/** The statement and its padding, as exact text: padded up to the next bucket, so its length does not tell its decision. */
-const paddedStatementText = (statement: BTPAgreementStatement): string => {
+/**
+ * Since 1.2 (rc.4): a statement as a cosignature encrypts it, as exact text: RFC 8785 of `{ statement, padding }`,
+ * `padding` being '0's up to the next multiple of the bucket (BTPS_FIELD_LIMITS.agreement.statementPaddingBucket), so
+ * its length does not tell its decision. The same statement always gives the same text: an evidence bundle keeps it.
+ */
+export const cosignedStatementText = (statement: BTPAgreementStatement): string => {
   const bucket = BTPS_FIELD_LIMITS.agreement.statementPaddingBucket;
   const bare = canonicalizeValue({ statement, padding: '' });
   return canonicalizeValue({ statement, padding: '0'.repeat((bucket - (bare.length % bucket)) % bucket) });
@@ -69,7 +73,7 @@ export const cosign = async (input: {
   by: { selector?: string } & SigningKey;
 }): Promise<BTPCosignature> => {
   const { statement, recipients, by } = input;
-  const text = paddedStatementText(statement);
+  const text = cosignedStatementText(statement);
   const contentKey = crypto.randomBytes(32);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', contentKey, iv);
