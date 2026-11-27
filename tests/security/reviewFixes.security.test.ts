@@ -297,13 +297,13 @@ describe('the 1.2 security review, attacked over the wire', () => {
         { originator: BANK, selector: 'btps1', pemFiles: forger.bank },
       );
       const said = {
-          agreement: agreementRef(agreement, BANK),
-          terms: [],
-          signer: ALICE,
-          decision: 'accepted' as const,
-          signedAt: '2026-11-02T00:00:00.000Z',
-          artifactId: '00000000-0000-4000-8000-0000000000a1',
-        };
+        agreement: agreementRef(agreement, BANK),
+        terms: [],
+        signer: ALICE,
+        decision: 'accepted' as const,
+        signedAt: '2026-11-02T00:00:00.000Z',
+        artifactId: '00000000-0000-4000-8000-0000000000a1',
+      };
       const statement = await cosign({
         statement: said,
         recipients: [

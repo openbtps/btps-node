@@ -26,7 +26,11 @@ const keyPair = () =>
 const BANK = 'loans$bank.example';
 const ALICE = 'alice$client.example';
 const SAM = 'sam$guarantor.example';
-const keys: Record<string, ReturnType<typeof keyPair>> = { [BANK]: keyPair(), [ALICE]: keyPair(), [SAM]: keyPair() };
+const keys: Record<string, ReturnType<typeof keyPair>> = {
+  [BANK]: keyPair(),
+  [ALICE]: keyPair(),
+  [SAM]: keyPair(),
+};
 const TERM = 'a'.repeat(64);
 
 const agreementFor = (acceptance: Partial<BTPAgreementDoc['acceptance']> = {}) =>
@@ -66,12 +70,20 @@ const answer = async (
   };
   const cosignature = await cosign({
     statement,
-    recipients: [BANK, ALICE, SAM].map((identity) => ({ identity, publicKey: keys[identity]!.publicKey })),
+    recipients: [BANK, ALICE, SAM].map((identity) => ({
+      identity,
+      publicKey: keys[identity]!.publicKey,
+    })),
     by: { selector: 'btps1', pemFiles: keys[signer]! },
   });
   return {
     envelope: { from: signer, to: BANK },
-    event: { eventType: statement.decision, agreement: statement.agreement, cosignature, statement },
+    event: {
+      eventType: statement.decision,
+      agreement: statement.agreement,
+      cosignature,
+      statement,
+    },
   };
 };
 
@@ -84,7 +96,9 @@ describe('agreementStatementProblem', () => {
     const second = await answer(agreement, SAM, {
       previous: cosignatureSha256(first.event.cosignature),
     });
-    expect(agreementStatementProblem(second.envelope, second.event, agreement, [first.event])).toBeUndefined();
+    expect(
+      agreementStatementProblem(second.envelope, second.event, agreement, [first.event]),
+    ).toBeUndefined();
   });
 
   it("refuses an eventType that is not its statement's decision", async () => {

@@ -781,13 +781,13 @@ describe('10. a forged authority in an evidence bundle', () => {
       { originator: bank.identity, selector: 'btps1', pemFiles: bank.keys },
     );
     const said = {
-        agreement: agreementRef(agreement, bank.identity),
-        terms: [],
-        signer: jane.identity,
-        decision: 'accepted' as const,
-        signedAt: secondsAgo(120),
-        artifactId: '00000000-0000-4000-8000-0000000000a1',
-      };
+      agreement: agreementRef(agreement, bank.identity),
+      terms: [],
+      signer: jane.identity,
+      decision: 'accepted' as const,
+      signedAt: secondsAgo(120),
+      artifactId: '00000000-0000-4000-8000-0000000000a1',
+    };
     const statement = await cosign({
       statement: said,
       recipients: [
@@ -826,7 +826,8 @@ describe('10. a forged authority in an evidence bundle', () => {
         {
           originator: bank.identity,
           agreement,
-          cosignatures: [statement], statements: [said],
+          cosignatures: [statement],
+          statements: [said],
           keyChains: [{ identity: jane.identity, records: [lost], operatorAnswer: answer }],
         },
         (identity) =>

@@ -80,7 +80,10 @@ export const BtpsAgentCommandSchema = z.object({
     change: z.literal(true).optional(),
     granted: z.array(z.string()).optional(),
     // Since 1.2 (rc.4): cosignatures, as the transporter artifact carries them; the receiving server checks them.
-    cosignatures: boundedArray(BtpCosignatureSchema, BTPS_FIELD_LIMITS.agreement.signers).optional(),
+    cosignatures: boundedArray(
+      BtpCosignatureSchema,
+      BTPS_FIELD_LIMITS.agreement.signers,
+    ).optional(),
   }).optional(),
 });
 

@@ -127,28 +127,31 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
     const viewed = new Date().toISOString();
     const id = randomUUID();
     const statement: BTPAgreementStatement = {
-        agreement: agreementRef(agreement, bank.identity),
-        terms: (agreement.acceptance as { terms: string[] }).terms,
-        signer: signer.identity,
-        artifactId: id,
-        decision: 'accepted',
-        signedAt: new Date().toISOString(),
-        ...(previous && { previous }),
-        // Each signer's own signature, inside what it signs: typed, or drawn.
-        visualSignature:
-          signer === alice
-            ? { type: 'typed', text: 'Alice Ng' }
-            : { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] },
-        // And its consent to sign electronically, when it viewed the agreement, and where from.
-        consent: { electronic: true, disclosureSha256: 'd'.repeat(64), at: viewed },
-        viewedAt: viewed,
-        viewedFrom: { ip: '203.0.113.7', device: { os: 'macOS', browser: 'Chrome' } },
-        signedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
+      agreement: agreementRef(agreement, bank.identity),
+      terms: (agreement.acceptance as { terms: string[] }).terms,
+      signer: signer.identity,
+      artifactId: id,
+      decision: 'accepted',
+      signedAt: new Date().toISOString(),
+      ...(previous && { previous }),
+      // Each signer's own signature, inside what it signs: typed, or drawn.
+      visualSignature:
+        signer === alice
+          ? { type: 'typed', text: 'Alice Ng' }
+          : { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] },
+      // And its consent to sign electronically, when it viewed the agreement, and where from.
+      consent: { electronic: true, disclosureSha256: 'd'.repeat(64), at: viewed },
+      viewedAt: viewed,
+      viewedFrom: { ip: '203.0.113.7', device: { os: 'macOS', browser: 'Chrome' } },
+      signedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
     };
     // Encrypted once to the bank and every signer, then signed: by its signer's key, or, forged, by another's.
     const cosignature = await cosign({
       statement,
-      recipients: [bank, alice, sam].map((user) => ({ identity: user.identity, publicKey: user.keys.publicKey })),
+      recipients: [bank, alice, sam].map((user) => ({
+        identity: user.identity,
+        publicKey: user.keys.publicKey,
+      })),
       by: { selector: signer.selector, pemFiles: signedBy.keys },
     });
     const event = await artifactFrom(
@@ -205,13 +208,21 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
     expect(first.response?.status).toMatchObject({ ok: true, code: 200 });
     cosignatures.push(first.cosignature);
     statements.push(first.statement);
-    answered.push({ signer: alice.identity, decision: 'accepted', sha256: cosignatureSha256(first.cosignature) });
+    answered.push({
+      signer: alice.identity,
+      decision: 'accepted',
+      sha256: cosignatureSha256(first.cosignature),
+    });
 
     const second = await answer(sam, cosignatureSha256(first.cosignature));
     expect(second.response?.status).toMatchObject({ ok: true, code: 200 });
     cosignatures.push(second.cosignature);
     statements.push(second.statement);
-    answered.push({ signer: sam.identity, decision: 'accepted', sha256: cosignatureSha256(second.cosignature) });
+    answered.push({
+      signer: sam.identity,
+      decision: 'accepted',
+      sha256: cosignatureSha256(second.cosignature),
+    });
 
     // A signer who has answered is refused a second answer.
     expect((await answer(alice)).response?.status).toMatchObject({

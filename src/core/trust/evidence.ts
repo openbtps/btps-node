@@ -51,7 +51,12 @@ import type {
   BTPAgreementStatement,
   BTPCosignature,
 } from './types.js';
-import { cosignatureSha256, cosignatureSignedPart, cosignedStatementText, statementOfText } from './cosignatures.js';
+import {
+  cosignatureSha256,
+  cosignatureSignedPart,
+  cosignedStatementText,
+  statementOfText,
+} from './cosignatures.js';
 
 /**
  * Since 1.2: an agreement's evidence bundle (format `btps-evidence/1`). A
@@ -226,7 +231,8 @@ const cosignatureKeys = (
   keyOf: BTPKeyOf,
 ): { key: BTPEvidenceKey; delegationKey?: BTPEvidenceKey } => {
   const { signer } = cosignature;
-  if (cosignature.selector !== undefined) return { key: bundleKey(keyOf, signer, cosignature.selector) };
+  if (cosignature.selector !== undefined)
+    return { key: bundleKey(keyOf, signer, cosignature.selector) };
   if (!cosignature.delegatedArtifact) return { key: { identity: signer } };
   const { delegation } = cosignature.delegatedArtifact;
   const fingerprint = fingerprintOf(delegation.agentPubKey);
@@ -251,7 +257,11 @@ const cosignatureSignatureFacts = (cosignature: BTPCosignature, keyOf: BTPKeyOf)
   const signed = cosignatureSignedPart(cosignature);
   if (cosignature.selector !== undefined) {
     return {
-      signatureValid: isValid(signed, cosignature.signature, keyOf(cosignature.signer, cosignature.selector)),
+      signatureValid: isValid(
+        signed,
+        cosignature.signature,
+        keyOf(cosignature.signer, cosignature.selector),
+      ),
       keyKind: 'identity' as const,
     };
   }
@@ -263,13 +273,21 @@ const cosignatureSignatureFacts = (cosignature: BTPCosignature, keyOf: BTPKeyOf)
     !attestation ||
     (() => {
       const { signature, ...unsigned } = attestation;
-      return isValid({ ...delegation, attestation: unsigned }, signature, keyOf(attestation.signedBy, attestation.selector));
+      return isValid(
+        { ...delegation, attestation: unsigned },
+        signature,
+        keyOf(attestation.signedBy, attestation.selector),
+      );
     })();
   const signatureValid =
     sameIdentity(artifact.from, cosignature.signer) &&
     artifact.id === cosignature.artifactId &&
     (!sameIdentity(delegation.signedBy, artifact.from) || attestation !== undefined) &&
-    isValid({ ...artifact, delegation: unsignedDelegation }, delegationSignature, keyOf(delegation.signedBy, delegation.selector)) &&
+    isValid(
+      { ...artifact, delegation: unsignedDelegation },
+      delegationSignature,
+      keyOf(delegation.signedBy, delegation.selector),
+    ) &&
     attested &&
     isValid(unsignedArtifact, artifactSignature, delegation.agentPubKey) &&
     isValid(signed, cosignature.signature, delegation.agentPubKey);
@@ -502,7 +520,8 @@ export const verifyEvidenceBundle = async (
       ...(statement && { decision: statement.decision }),
       ...cosignatureSignatureFacts(cosignature, keyOf),
       ...cosignatureKeys(cosignature, keyOf),
-      statementMatches: statement !== undefined && cosignatures.length === parsed.data.statements.length,
+      statementMatches:
+        statement !== undefined && cosignatures.length === parsed.data.statements.length,
       agreementMatches:
         sameIdentity(named.originator, ref.originator) &&
         named.id === ref.id &&
@@ -511,7 +530,9 @@ export const verifyEvidenceBundle = async (
         statement !== undefined &&
         statement.terms.length === terms.length &&
         statement.terms.every((t, n) => t === terms[n]),
-      withinDeadline: statement !== undefined && (by === undefined || Date.parse(statement.signedAt) <= Date.parse(by)),
+      withinDeadline:
+        statement !== undefined &&
+        (by === undefined || Date.parse(statement.signedAt) <= Date.parse(by)),
       inOrder:
         agreementOrderProblem(
           { from: cosignature.signer, previous: cosignature.previous },
@@ -802,7 +823,7 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
     const attested = s.attestedBy ? `, attested by ${s.attestedBy}` : '';
     lines.push(
       '',
-      `${i + 1}. ${s.signer}: ${s.decision ?? "its statement is not the one it signed"} (${key}${attested})`,
+      `${i + 1}. ${s.signer}: ${s.decision ?? 'its statement is not the one it signed'} (${key}${attested})`,
       `   key ${keyText(s.key)}`,
       ...(s.delegationKey ? [`   delegation key ${keyText(s.delegationKey)}`] : []),
       `   signature ${mark(s.signatureValid)}, the statement it signed ${mark(s.statementMatches)}, this agreement ${mark(s.agreementMatches)}`,

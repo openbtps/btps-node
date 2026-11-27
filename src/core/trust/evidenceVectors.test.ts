@@ -41,7 +41,9 @@ const named = (name: string) => {
 };
 /** Each cosignature's statement, from the exact text a bundle keeps of it. */
 const statementsOf = (bundle: BTPEvidenceBundle): BTPAgreementStatement[] =>
-  bundle.statements.map((text) => (JSON.parse(text) as { statement: BTPAgreementStatement }).statement);
+  bundle.statements.map(
+    (text) => (JSON.parse(text) as { statement: BTPAgreementStatement }).statement,
+  );
 const keyOfBundle =
   (bundle: BTPEvidenceBundle) =>
   (identity: string, selector: string): string | undefined =>

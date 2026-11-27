@@ -342,7 +342,6 @@ export type BTPCosignatureRecipient = {
   wrappedKey: string;
 };
 
-
 /** Since 1.2: a tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. `AU`). */
 export type BTPNumberInCountry = { number: string; country: string };
 

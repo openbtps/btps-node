@@ -279,7 +279,10 @@ describe('a client sending over a real connection', () => {
   it('delivers the next send at once after an answer that says its connection is closing, never on that one', async () => {
     // Since 1.2 a server says so in the answer before it ends a connection: the next send makes a new one at once.
     const { tcp } = await receiver((line, socket) => {
-      reply(socket, answerTo(JSON.parse(line).id, { status: { ok: true, code: 200, closing: true } }));
+      reply(
+        socket,
+        answerTo(JSON.parse(line).id, { status: { ok: true, code: 200, closing: true } }),
+      );
       socket.end();
     });
     track(tcp);

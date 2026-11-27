@@ -22,7 +22,12 @@ import type { BtpAgreementDocSchema } from '@core/server/schemas/btpsDocsSchema.
 import type { BTPDelegation } from '@core/server/types.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import { cosignatureSha256 } from './cosignatures.js';
-import type { BTPAgreementAnswers, BTPAgreementRef, BTPAgreementStatement, BTPCosignature } from './types.js';
+import type {
+  BTPAgreementAnswers,
+  BTPAgreementRef,
+  BTPAgreementStatement,
+  BTPCosignature,
+} from './types.js';
 
 type BTPAgreementDoc = z.infer<typeof BtpAgreementDocSchema>;
 
@@ -152,7 +157,12 @@ const sameRef = (a: BTPAgreementRef, b: BTPAgreementRef) =>
  */
 export const agreementStatementProblem = (
   envelope: { from: string; to: string },
-  answer: { eventType: string; agreement: BTPAgreementRef; cosignature: BTPCosignature; statement: BTPAgreementStatement },
+  answer: {
+    eventType: string;
+    agreement: BTPAgreementRef;
+    cosignature: BTPCosignature;
+    statement: BTPAgreementStatement;
+  },
   agreement: BTPAgreementDoc,
   earlier: readonly { cosignature: BTPCosignature; statement: BTPAgreementStatement }[],
 ): string | undefined => {

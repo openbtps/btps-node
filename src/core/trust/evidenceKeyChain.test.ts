@@ -88,7 +88,11 @@ const signed = async () => {
     decision: 'accepted',
     signedAt: at(2),
   };
-  const alice = await cosign({ statement: aliceSaid, recipients, by: { selector: 'btps1', pemFiles: a1 } });
+  const alice = await cosign({
+    statement: aliceSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: a1 },
+  });
   const bankSaid: BTPAgreementStatement = {
     agreement: about,
     terms: [],
@@ -98,7 +102,11 @@ const signed = async () => {
     signedAt: at(3),
     previous: cosignatureSha256(alice),
   };
-  const bank = await cosign({ statement: bankSaid, recipients, by: { selector: 'btps1', pemFiles: b1 } });
+  const bank = await cosign({
+    statement: bankSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: b1 },
+  });
   return { agreement, cosignatures: [alice, bank], statements: [aliceSaid, bankSaid] };
 };
 
@@ -236,7 +244,13 @@ describe("an evidence bundle's key chains", () => {
     const records = [await planned(ALICE, a1, a2, 10)];
     const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps1: a1.publicKey } });
     const bundle = buildEvidenceBundle(
-      { originator: BANK, agreement, cosignatures, statements, keyChains: [{ identity: BANK, records }] },
+      {
+        originator: BANK,
+        agreement,
+        cosignatures,
+        statements,
+        keyChains: [{ identity: BANK, records }],
+      },
       keyOf,
     );
 
@@ -418,7 +432,10 @@ describe("an evidence bundle's key chains", () => {
   it('is refused when a key chain is not one', async () => {
     const { agreement, cosignatures, statements } = await signed();
     const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps1: a1.publicKey } });
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     await expect(
       verified({ ...bundle, keyChains: [{ identity: ALICE, records: [{ rotation: {} }] }] }),
     ).rejects.toMatchObject({ code: 'BTP_ERROR_VALIDATION' });
@@ -447,7 +464,10 @@ describe('an evidence bundle checked online', () => {
     const keyChains = [{ identity: BANK, records: [await planned(BANK, b1, b2, 10)] }];
     const keyOf = dnsNow({ [BANK]: { btps2: b2.publicKey }, [ALICE]: { btps1: a1.publicKey } });
     return {
-      bundle: buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements, keyChains }, keyOf),
+      bundle: buildEvidenceBundle(
+        { originator: BANK, agreement, cosignatures, statements, keyChains },
+        keyOf,
+      ),
       records: keyChains[0]!.records,
     };
   };
@@ -537,7 +557,10 @@ describe('an evidence bundle checked online', () => {
       });
       const operatorAnswered = operatorAnswer(ALICE, [lost], signer, signedBy);
       const keyChains = [{ identity: ALICE, records: [lost], operatorAnswer: operatorAnswered }];
-      return buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements, keyChains }, keyOf);
+      return buildEvidenceBundle(
+        { originator: BANK, agreement, cosignatures, statements, keyChains },
+        keyOf,
+      );
     };
     const bundle = answeredBy(OPERATOR, op);
     const chainFacts = async (of = bundle) =>

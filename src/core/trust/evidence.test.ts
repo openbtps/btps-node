@@ -56,7 +56,11 @@ const signed = async () => {
     decision: 'accepted',
     signedAt: '2026-11-02T00:00:00.000Z',
   };
-  const alice = await cosign({ statement: aliceSaid, recipients, by: { selector: 'btps1', pemFiles: keys[ALICE] } });
+  const alice = await cosign({
+    statement: aliceSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: keys[ALICE] },
+  });
   const bankSaid: BTPAgreementStatement = {
     agreement: about,
     terms: [],
@@ -66,14 +70,21 @@ const signed = async () => {
     signedAt: '2026-11-03T00:00:00.000Z',
     previous: cosignatureSha256(alice),
   };
-  const bank = await cosign({ statement: bankSaid, recipients, by: { selector: 'btps1', pemFiles: keys[BANK] } });
+  const bank = await cosign({
+    statement: bankSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: keys[BANK] },
+  });
   return { agreement, cosignatures: [alice, bank], statements: [aliceSaid, bankSaid] };
 };
 
 describe('an evidence bundle', () => {
   it('built from a signed agreement and its answers, checks complete offline', async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
 
     expect(bundle.keys.map(({ identity }) => identity)).toEqual([BANK, ALICE]);
     const facts = await verifyEvidenceBundle(JSON.parse(JSON.stringify(bundle)));
@@ -84,11 +95,17 @@ describe('an evidence bundle', () => {
     });
   });
 
-  it("holds each statement to the exact text its cosignature signed: another word, and it does not match", async () => {
+  it('holds each statement to the exact text its cosignature signed: another word, and it does not match', async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     const changed = bundle.statements[0]!.replace('"accepted"', '"declined"');
-    const facts = await verifyEvidenceBundle({ ...bundle, statements: [changed, ...bundle.statements.slice(1)] });
+    const facts = await verifyEvidenceBundle({
+      ...bundle,
+      statements: [changed, ...bundle.statements.slice(1)],
+    });
     expect(facts.statements[0]).toMatchObject({ signatureValid: true, statementMatches: false });
     expect(facts.complete).toBe(false);
   });
@@ -104,7 +121,10 @@ describe('an evidence bundle', () => {
 
   it('ignores a key whose fingerprint is not its own', async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     const swapped = {
       ...bundle,
       keys: bundle.keys.map((key) =>
@@ -124,7 +144,10 @@ describe('an evidence bundle', () => {
 
   it('reads as plain text, a fact a line, saying what does not hold', async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     const facts = await verifyEvidenceBundle({
       ...bundle,
       cosignatures: bundle.cosignatures.slice(0, 1),
@@ -139,7 +162,10 @@ describe('an evidence bundle', () => {
 
   it('names each key it checked a signature with, and says the keys are the bundle’s own', async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     const fingerprintOf = (identity: string) =>
       bundle.keys.find((key) => key.identity === identity)?.fingerprint;
 
@@ -163,7 +189,10 @@ describe('an evidence bundle', () => {
 
   it("reads a statement's timestamp too, saying when no roots were given to trust it", async () => {
     const { agreement, cosignatures, statements } = await signed();
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, cosignatures, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     const facts = await verifyEvidenceBundle(bundle);
     const [first, ...rest] = facts.statements;
     const stamped = {

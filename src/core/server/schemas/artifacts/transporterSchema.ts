@@ -259,7 +259,8 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
             : data.cosignatures.length === 0
               ? 'cosignatures are at least one'
               : undefined;
-      if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['cosignatures'] });
+      if (problem)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['cosignatures'] });
     }
     for (const [path, message] of permissionEnvelopeProblems(data)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] });

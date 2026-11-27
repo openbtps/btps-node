@@ -25,7 +25,13 @@ import {
   originatorSignatureValid,
   signAgreement,
 } from './agreements.js';
-import { cosign, cosignatureSha256, cosignaturesProblem, openCosignature, statementOfText } from './cosignatures.js';
+import {
+  cosign,
+  cosignatureSha256,
+  cosignaturesProblem,
+  openCosignature,
+  statementOfText,
+} from './cosignatures.js';
 import type { BTPAgreementStatement, BTPCosignature } from './types.js';
 
 const keyPair = () =>
@@ -100,11 +106,19 @@ const statement: BTPAgreementStatement = {
   decision: 'accepted',
   signedAt: '2026-11-02T00:00:00.000Z',
 };
-const recipients = [BANK, ALICE].map((identity) => ({ identity, publicKey: keys[identity as keyof typeof keys].publicKey }));
+const recipients = [BANK, ALICE].map((identity) => ({
+  identity,
+  publicKey: keys[identity as keyof typeof keys].publicKey,
+}));
 const keyOfAsync = async (identity: string) => keyOf(identity);
 
 /** An event carrying `cosignatures`, as its server checks it: `from`, under `id`, perhaps delegated. */
-const carrying = (from: string, id: string, cosignatures: BTPCosignature[], delegation?: BTPDelegation) =>
+const carrying = (
+  from: string,
+  id: string,
+  cosignatures: BTPCosignature[],
+  delegation?: BTPDelegation,
+) =>
   ({
     version: '1.2.0',
     type: 'BTPS_EVENT',
@@ -129,32 +143,57 @@ const textOf = async (cosignature: BTPCosignature) => {
 
 describe("a signer's cosignature", () => {
   it('signed with the identity key checks with it, and opens to its statement', async () => {
-    const cosignature = await cosign({ statement, recipients, by: { selector: 'btps1', pemFiles: keys[ALICE] } });
-    expect(await cosignaturesProblem(carrying(ALICE, statement.artifactId, [cosignature]), keyOfAsync)).toBeUndefined();
+    const cosignature = await cosign({
+      statement,
+      recipients,
+      by: { selector: 'btps1', pemFiles: keys[ALICE] },
+    });
+    expect(
+      await cosignaturesProblem(carrying(ALICE, statement.artifactId, [cosignature]), keyOfAsync),
+    ).toBeUndefined();
     expect(await textOf(cosignature)).toEqual(statement);
   });
 
   it('does not check without its key, or with another', async () => {
-    const cosignature = await cosign({ statement, recipients, by: { selector: 'btps1', pemFiles: keys[ALICE] } });
-    expect(await cosignaturesProblem(carrying(ALICE, statement.artifactId, [cosignature]), async () => undefined)).toMatch(
-      /signed by its signer/,
-    );
-    const byOther = await cosign({ statement, recipients, by: { selector: 'btps1', pemFiles: keys.other } });
-    expect(await cosignaturesProblem(carrying(ALICE, statement.artifactId, [byOther]), keyOfAsync)).toMatch(
-      /signed by its signer/,
-    );
+    const cosignature = await cosign({
+      statement,
+      recipients,
+      by: { selector: 'btps1', pemFiles: keys[ALICE] },
+    });
+    expect(
+      await cosignaturesProblem(
+        carrying(ALICE, statement.artifactId, [cosignature]),
+        async () => undefined,
+      ),
+    ).toMatch(/signed by its signer/);
+    const byOther = await cosign({
+      statement,
+      recipients,
+      by: { selector: 'btps1', pemFiles: keys.other },
+    });
+    expect(
+      await cosignaturesProblem(carrying(ALICE, statement.artifactId, [byOther]), keyOfAsync),
+    ).toMatch(/signed by its signer/);
   });
 
-  it("covers every word of its statement, the visual signature, consent and where it was signed from included", async () => {
+  it('covers every word of its statement, the visual signature, consent and where it was signed from included', async () => {
     const signed = {
       ...statement,
       visualSignature: { type: 'typed' as const, text: 'Alice Ng' },
-      consent: { electronic: true as const, disclosureSha256: 'a'.repeat(64), at: '2026-11-01T23:59:00.000Z' },
+      consent: {
+        electronic: true as const,
+        disclosureSha256: 'a'.repeat(64),
+        at: '2026-11-01T23:59:00.000Z',
+      },
       viewedAt: '2026-11-01T23:58:00.000Z',
       viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
       signedFrom: { ip: '2001:db8::7', userAgent: 'Mozilla/5.0 (iPhone) Safari/604.1' },
     };
-    const cosignature = await cosign({ statement: signed, recipients, by: { selector: 'btps1', pemFiles: keys[ALICE] } });
+    const cosignature = await cosign({
+      statement: signed,
+      recipients,
+      by: { selector: 'btps1', pemFiles: keys[ALICE] },
+    });
     const opened = await textOf(cosignature);
     expect(opened).toEqual(signed);
     // Any other text, with any one word changed, is not the one it signed.
@@ -164,15 +203,23 @@ describe("a signer's cosignature", () => {
       { ...signed, signedFrom: { ip: '198.51.100.9' } },
       { ...signed, decision: 'declined' as const },
     ]) {
-      expect(statementOfText(cosignature, canonicalizeValue({ statement: changed, padding: '' }))).toEqual({
+      expect(
+        statementOfText(cosignature, canonicalizeValue({ statement: changed, padding: '' })),
+      ).toEqual({
         problem: 'its statement is not the one it signed',
       });
     }
   });
 
   it('is named by the next one by the SHA-256 of its RFC 8785 form, signature included', async () => {
-    const cosignature = await cosign({ statement, recipients, by: { selector: 'btps1', pemFiles: keys[ALICE] } });
-    const sha256 = createHash('sha256').update(canonicalizeValue(cosignature), 'utf8').digest('hex');
+    const cosignature = await cosign({
+      statement,
+      recipients,
+      by: { selector: 'btps1', pemFiles: keys[ALICE] },
+    });
+    const sha256 = createHash('sha256')
+      .update(canonicalizeValue(cosignature), 'utf8')
+      .digest('hex');
     expect(cosignatureSha256(cosignature)).toBe(sha256);
   });
 });
@@ -229,41 +276,57 @@ const onDevice = async (artifact: ReturnType<typeof delivered>, key: Keys = keys
 };
 const forwarded = (cosignature: BTPCosignature) => carrying(BANK, randomUUID(), [cosignature]);
 
-describe("a cosignature signed on a device", () => {
+describe('a cosignature signed on a device', () => {
   it('checks in the delegated artifact that first delivers it, under that delegation', async () => {
     const artifact = delivered(ALICE, byOperator);
     const cosignature = await cosign({ statement, recipients, by: { pemFiles: keys.device } });
     expect(
-      await cosignaturesProblem(carrying(ALICE, statement.artifactId, [cosignature], artifact.delegation), keyOfAsync),
+      await cosignaturesProblem(
+        carrying(ALICE, statement.artifactId, [cosignature], artifact.delegation),
+        keyOfAsync,
+      ),
     ).toBeUndefined();
   });
 
   it('checks when forwarded with that artifact: delegated by its operator, or by itself and attested', async () => {
-    expect(await cosignaturesProblem(forwarded(await onDevice(delivered(ALICE, byOperator))), keyOfAsync)).toBeUndefined();
     expect(
-      await cosignaturesProblem(forwarded(await onDevice(delivered(ALICE, byAlice, byOperator))), keyOfAsync),
+      await cosignaturesProblem(
+        forwarded(await onDevice(delivered(ALICE, byOperator))),
+        keyOfAsync,
+      ),
+    ).toBeUndefined();
+    expect(
+      await cosignaturesProblem(
+        forwarded(await onDevice(delivered(ALICE, byAlice, byOperator))),
+        keyOfAsync,
+      ),
     ).toBeUndefined();
   });
 
   it('does not check when the signer delegated for itself with no attestation', async () => {
     // A server refuses such a delegation on arrival, so a forward of it is refused too.
-    expect(await cosignaturesProblem(forwarded(await onDevice(delivered(ALICE, byAlice))), keyOfAsync)).toMatch(
-      /attestation/,
-    );
+    expect(
+      await cosignaturesProblem(forwarded(await onDevice(delivered(ALICE, byAlice))), keyOfAsync),
+    ).toMatch(/attestation/);
   });
 
   it('does not check when the artifact came from someone else, or another key signed it', async () => {
-    expect(await cosignaturesProblem(forwarded(await onDevice(delivered(BANK, byOperator))), keyOfAsync)).toMatch(
-      /sent by its signer/,
-    );
     expect(
-      await cosignaturesProblem(forwarded(await onDevice(delivered(ALICE, byOperator), keys.other)), keyOfAsync),
+      await cosignaturesProblem(forwarded(await onDevice(delivered(BANK, byOperator))), keyOfAsync),
+    ).toMatch(/sent by its signer/);
+    expect(
+      await cosignaturesProblem(
+        forwarded(await onDevice(delivered(ALICE, byOperator), keys.other)),
+        keyOfAsync,
+      ),
     ).toMatch(/signed by its device/);
   });
 
   it("does not check when its delegation or its attestation is not its signer's", async () => {
     const forged = await onDevice(delivered(ALICE, { signedBy: OPERATOR, key: keys.other }));
-    const misattested = await onDevice(delivered(ALICE, byAlice, { signedBy: OPERATOR, key: keys.other }));
+    const misattested = await onDevice(
+      delivered(ALICE, byAlice, { signedBy: OPERATOR, key: keys.other }),
+    );
     expect(await cosignaturesProblem(forwarded(forged), keyOfAsync)).toMatch(/delegation/);
     expect(await cosignaturesProblem(forwarded(misattested), keyOfAsync)).toMatch(/attestation/);
   });
@@ -272,11 +335,15 @@ describe("a cosignature signed on a device", () => {
     // F4: a stolen device key signs a fresh statement and attaches an older artifact its device sent, delegation and
     // all. The cosignature and its statement name the artifact they first came in, which must be that one.
     const older = delivered(ALICE, byOperator, undefined, randomUUID());
-    expect(await cosignaturesProblem(forwarded(await onDevice(older)), keyOfAsync)).toMatch(/delegated artifact/);
+    expect(await cosignaturesProblem(forwarded(await onDevice(older)), keyOfAsync)).toMatch(
+      /delegated artifact/,
+    );
   });
 
   it('still checks after it is forwarded as JSON', async () => {
-    const cosignature: BTPCosignature = JSON.parse(JSON.stringify(await onDevice(delivered(ALICE, byOperator))));
+    const cosignature: BTPCosignature = JSON.parse(
+      JSON.stringify(await onDevice(delivered(ALICE, byOperator))),
+    );
     expect(await cosignaturesProblem(forwarded(cosignature), keyOfAsync)).toBeUndefined();
   });
 });
