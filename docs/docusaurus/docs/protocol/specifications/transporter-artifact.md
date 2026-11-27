@@ -138,6 +138,7 @@ From the envelope alone:
 
 And where the document is readable (not encrypted):
 
+- a request that gives a detail (`given`), or an answer that grants one (a `detail:` name in `granted`): details are never in the clear, and their values are in the document, a request's in its 1.1 fields (`name`, `email`, `phone`, `address`, the profile fields) or `own`, an answer's in `details`;
 - a request carrying its own values (`own`), or an answer carrying the granted values (`details`, keyed by name, so `detail:profile` sits inside it as `{ displayName, logo?, website? }`): those are always encrypted;
 - an answer that is not `accepted` but carries `granted`.
 

@@ -67,8 +67,22 @@ const agent = () => {
     selector: 'btps1',
     version: '1.2.0',
   });
+  // The receiver's key, for a request or an answer that carries details, which is encrypted to it.
+  vi.spyOn(device, 'resolveIdentity').mockResolvedValue({
+    response: {
+      hostname: 'localhost',
+      port: 3443,
+      selector: 'btps1',
+      version: '1.2.0',
+      publicKey: keys.publicKey,
+      keyType: 'rsa',
+    },
+    error: undefined,
+  });
   return device;
 };
+/** Details are never in the clear: a request giving them, or an answer granting them, is encrypted. */
+const sealed = { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } };
 const build = (actionType: 'trust.request' | 'trust.respond', document: object, options: object) =>
   agent()['buildTransportArtifact']({
     actionType,
@@ -85,10 +99,21 @@ const call = (actionType: string, document: object, options: object) =>
   }).success;
 
 describe("a device's trust request with permissions", () => {
-  it('sets them on the envelope, signed, and is stamped 1.2.0', async () => {
-    const { payload, error } = await build('trust.request', request, asking);
+  it('sets them on the envelope, signed, and is stamped 1.2.0, its document encrypted', async () => {
+    const { payload, error } = await build('trust.request', request, { ...asking, ...sealed });
     expect(error).toBeUndefined();
     expect(payload).toMatchObject({ ...asking, type: 'TRUST_REQ', version: '1.2.0' });
+    expect(payload?.encryption).not.toBeNull();
+    expect(typeof payload?.document).toBe('string');
+  });
+
+  it('is refused unencrypted when it gives details: their values are in its document', async () => {
+    expect(call('trust.request', request, asking)).toBe(false);
+    expect(call('trust.request', request, { ...asking, ...sealed })).toBe(true);
+    // Asking without giving (a person asking a business) carries no details: it may go in the clear.
+    expect(call('trust.request', request, { ...asking, entityType: 'person', given: [] })).toBe(
+      true,
+    );
   });
 
   it('is refused before it goes when it does not give what it asks for', async () => {
@@ -123,6 +148,16 @@ describe("a device's trust answer with permissions", () => {
 
   it('is refused granting without entityType', () => {
     expect(call('trust.respond', answer, { granted: ['send:invoice'] })).toBe(false);
+  });
+
+  it('is refused unencrypted when it grants details: their values are in its document', async () => {
+    const granting = { granted: ['send:invoice', 'detail:email'], entityType: 'person' };
+    expect(call('trust.respond', answer, granting)).toBe(false);
+    expect(call('trust.respond', answer, { ...granting, ...sealed })).toBe(true);
+    const withValues = { ...answer, details: { 'detail:email': 'pay@client.example' } };
+    const { payload, error } = await build('trust.respond', withValues, { ...granting, ...sealed });
+    expect(error).toBeUndefined();
+    expect(payload?.encryption).not.toBeNull();
   });
 });
 
@@ -165,7 +200,7 @@ describe('a trust request with permissions, to a receiver whose server speaks 1.
   });
 
   it('goes as it is to a 1.2 receiver, saying nothing was shaped', async () => {
-    const { payload, shaped } = await build('trust.request', request, asking);
+    const { payload, shaped } = await build('trust.request', request, { ...asking, ...sealed });
     expect(shaped).toBeUndefined();
     expect(payload?.version).toBe('1.2.0');
   });

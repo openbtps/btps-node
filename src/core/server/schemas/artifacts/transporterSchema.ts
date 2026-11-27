@@ -197,6 +197,15 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
   }
 
   if (data.encryption === null) {
+    // Details are never in the clear. A request's `given` details are in its document, some in its
+    // 1.1 fields (name, email, phone, address), the rest in `own`; an answer's granted details are in
+    // its `details`. So a request that gives one, or an answer that grants one, is encrypted.
+    if (data.type === 'TRUST_REQ' && data.given?.length) {
+      problems.push(['encryption', 'a request that gives details is encrypted']);
+    }
+    if (data.type === 'TRUST_RES' && data.granted?.some((name) => name.startsWith('detail:'))) {
+      problems.push(['encryption', 'an answer that grants details is encrypted']);
+    }
     const document = documentRecord(data.document);
     if (data.type === 'TRUST_REQ' && document?.own !== undefined) {
       problems.push(['document', 'a request with its own values is encrypted']);

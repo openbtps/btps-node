@@ -126,6 +126,16 @@ below; `@btps/boundview` is released in step, unchanged.
   as a trust request or answer is, and what it carries decides: a response,
   with values, is always encrypted; a notice or a request, with none, may go
   unencrypted. Documents and events are held to the privacy type as before.
+- **Breaking between candidates: details are never in the clear.** A
+  `TRUST_REQ` that gives a detail (`given`), or a `TRUST_RES` that grants one
+  (a `detail:` name in `granted`), is refused unencrypted with
+  `BTP_ERROR_VALIDATION`, even when its values are only in the request's 1.1
+  fields (`name`, `email`, `phone`, `address`). Before, only one carrying `own`
+  or `details` was. `BtpsAgent` requires `options.encryption` on such a
+  `trust.request` or `trust.respond`, as on `details.respond`. Two new vectors
+  in `trust-permissions.vectors.json` (`request-giving-details-unencrypted`,
+  `response-granting-details-unencrypted`). A request without details, and one
+  shaped for a 1.1 receiver, may go unencrypted as before.
 
 ## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
 
