@@ -113,8 +113,14 @@ const openedCosignatures = async (
   receiverKey: BTPDecryptionKey | undefined,
 ): Promise<(BTPAgreementStatement | null)[] | BTPErrorException | undefined> => {
   const cosignatures = artifact.cosignatures as BTPCosignature[] | undefined;
-  if (cosignatures === undefined || receiverKey === undefined || typeof artifact.to !== 'string') return undefined;
+  if (cosignatures === undefined || typeof artifact.to !== 'string') return undefined;
   const fail = (reason: string) => new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason } });
+  // A statement addressed to the receiver is never left unchecked for want of the key that opens it.
+  if (receiverKey === undefined || receiverKey === '') {
+    const to = artifact.to;
+    const forYou = cosignatures.some(({ recipients }) => recipients.some(({ identity }) => sameIdentity(identity, to)));
+    return forYou ? fail('a cosignature for you is opened with your key: give receiverKey') : undefined;
+  }
   const about = (opened as { agreement?: BTPAgreementRef } | undefined)?.agreement;
   const statements: (BTPAgreementStatement | null)[] = [];
   for (const cosignature of cosignatures) {

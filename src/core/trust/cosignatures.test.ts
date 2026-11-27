@@ -13,6 +13,8 @@
 import { describe, expect, it } from 'vitest';
 import { generateKeyPairSync, randomUUID } from 'crypto';
 import { signBtpPayload } from '../crypto/index.js';
+import { decryptVerify } from '../crypto/decryptVerify.js';
+import { BTP_ERROR_SIG_VERIFICATION } from '../error/constant.js';
 import { BtpCosignatureSchema } from '../server/schemas/btpsDocsSchema.js';
 import type { BTPTransporterArtifact } from '../server/types.js';
 import { cosign, cosignatureSha256, cosignaturesProblem, openCosignature } from './cosignatures.js';
@@ -154,5 +156,35 @@ describe('a cosignature', () => {
     });
     const declined = await cosignBy(BOB, randomUUID(), { decision: 'declined' });
     expect(accepted.ciphertext.length).toBe(declined.ciphertext.length);
+  });
+});
+
+describe('decryptVerify and cosignatures', () => {
+  /** Bob's answer to Acme, signed as sent: the event names the agreement its cosignature does. */
+  const answerFromBob = async (to = ACME) => {
+    const id = randomUUID();
+    const { signature: _unsigned, ...unsigned } = event(BOB, id, [await cosignBy(BOB, id)]);
+    const artifact = { ...unsigned, to, document: { agreement: ref, eventType: 'accepted' } };
+    return { ...artifact, signature: signBtpPayload(artifact, keys[BOB]!) };
+  };
+
+  it('opens the statement addressed to the receiver with its key', async () => {
+    const { error, cosigned } = await decryptVerify(keys[BOB]!.publicKey, await answerFromBob(), keys[ACME]!.privateKey);
+    expect(error).toBeUndefined();
+    expect(cosigned?.[0]?.signer).toBe(BOB);
+  });
+
+  it('refuses rather than skips a statement addressed to the receiver when no key is given', async () => {
+    for (const key of [undefined, '']) {
+      const { error, cosigned } = await decryptVerify(keys[BOB]!.publicKey, await answerFromBob(), key);
+      expect(error?.code).toBe(BTP_ERROR_SIG_VERIFICATION.code);
+      expect(cosigned).toBeUndefined();
+    }
+  });
+
+  it('needs no key when no cosignature is addressed to the receiver', async () => {
+    const { error, cosigned } = await decryptVerify(keys[BOB]!.publicKey, await answerFromBob(MALLORY));
+    expect(error).toBeUndefined();
+    expect(cosigned).toBeUndefined();
   });
 });
