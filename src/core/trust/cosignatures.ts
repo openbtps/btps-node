@@ -238,6 +238,16 @@ export const openCosignature = async (
 };
 
 /**
+ * Since 1.2 (rc.4): why `value` is not a cosignature's opened statement, `{ statement, padding }`, as the protocol
+ * holds one: the statement's own rules (its decision, its visual signature and consent on an acceptance only, its
+ * times and where it was signed from) and its padding. Undefined when it is.
+ */
+export const cosignedStatementProblem = (value: unknown): string | undefined => {
+  const parsed = BtpCosignedStatementSchema.safeParse(value);
+  return parsed.success ? undefined : parsed.error.issues.map((issue) => issue.message).join('; ');
+};
+
+/**
  * Since 1.2 (rc.4): the statement in `text`, a cosignature's opened statement as exact text (an evidence bundle keeps
  * it so), or the problem: not the text it signed (its SHA-256), not in its one form (RFC 8785), or not what its
  * cosignature says (its document, signer, artifact and previous).

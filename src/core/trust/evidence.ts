@@ -176,7 +176,8 @@ export type BTPEvidenceFacts = {
     /** Since rc.4: its opened statement is the exact text its cosignature signed, and says what it says */
     statementMatches: boolean;
     signer: string;
-    decision: 'accepted' | 'declined';
+    /** What it decided, from its opened statement; absent when that is not the statement it signed */
+    decision?: 'accepted' | 'declined';
     /** The key its signature was checked with: the signer's identity key, or its device's key */
     key: BTPEvidenceKey;
     /** For a device: the key its delegation was checked with, the delegator's */
@@ -493,38 +494,34 @@ export const verifyEvidenceBundle = async (
     return result !== undefined && 'statement' in result ? result.statement : undefined;
   });
   const statementFacts = cosignatures.map((cosignature, i) => {
-    const statement = opened[i] ?? {
-      agreement: cosignature.ref,
-      terms: [],
-      signer: cosignature.signer,
-      artifactId: cosignature.artifactId,
-      decision: 'declined' as const,
-      signedAt: '',
-      ...(cosignature.previous !== undefined && { previous: cosignature.previous }),
-    };
-    const { agreement: named } = statement;
+    // An unusable statement says nothing: what holds of it is only what its signed cosignature says.
+    const statement = opened[i];
+    const named = cosignature.ref;
     const facts = {
-      signer: statement.signer,
-      decision: statement.decision,
+      signer: cosignature.signer,
+      ...(statement && { decision: statement.decision }),
       ...cosignatureSignatureFacts(cosignature, keyOf),
       ...cosignatureKeys(cosignature, keyOf),
-      statementMatches: opened[i] !== undefined && cosignatures.length === parsed.data.statements.length,
+      statementMatches: statement !== undefined && cosignatures.length === parsed.data.statements.length,
       agreementMatches:
         sameIdentity(named.originator, ref.originator) &&
         named.id === ref.id &&
         named.contentSha256 === ref.contentSha256,
       termsMatch:
-        statement.terms.length === terms.length && statement.terms.every((t, i) => t === terms[i]),
-      withinDeadline: by === undefined || Date.parse(statement.signedAt) <= Date.parse(by),
+        statement !== undefined &&
+        statement.terms.length === terms.length &&
+        statement.terms.every((t, n) => t === terms[n]),
+      withinDeadline: statement !== undefined && (by === undefined || Date.parse(statement.signedAt) <= Date.parse(by)),
       inOrder:
         agreementOrderProblem(
-          { from: statement.signer, previous: statement.previous },
+          { from: cosignature.signer, previous: cosignature.previous },
           { signers: signers.map(({ address }) => address), signingOrder, answered },
         ) === undefined,
     };
+    // One whose decision is not shown is taken as not ending the order: its own facts already say it does not hold.
     answered.push({
-      signer: statement.signer,
-      decision: statement.decision,
+      signer: cosignature.signer,
+      decision: statement?.decision ?? 'accepted',
       sha256: cosignatureSha256(cosignature),
     });
     return facts;
@@ -805,7 +802,7 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
     const attested = s.attestedBy ? `, attested by ${s.attestedBy}` : '';
     lines.push(
       '',
-      `${i + 1}. ${s.signer}: ${s.decision} (${key}${attested})`,
+      `${i + 1}. ${s.signer}: ${s.decision ?? "its statement is not the one it signed"} (${key}${attested})`,
       `   key ${keyText(s.key)}`,
       ...(s.delegationKey ? [`   delegation key ${keyText(s.delegationKey)}`] : []),
       `   signature ${mark(s.signatureValid)}, the statement it signed ${mark(s.statementMatches)}, this agreement ${mark(s.agreementMatches)}`,
