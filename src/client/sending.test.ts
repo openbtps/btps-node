@@ -219,6 +219,27 @@ describe('a client sending over a real connection', () => {
     expect(client['queue'].size).toBe(0);
   });
 
+  it('reports the answer a receiver wrote just before it ended the connection, never that it ended', async () => {
+    // An error frame and the end arrive together: the end must wait for the line already received (rc.4).
+    const { tcp } = await receiver((line, socket) => {
+      const { id } = JSON.parse(line);
+      reply(socket, {
+        ...answerTo(id),
+        type: 'btps_error',
+        status: { ok: false, code: 500, message: 'Unknown error', error: 'BTP_UNKNOWN_ERROR' },
+      });
+      socket.end();
+    });
+    track(tcp);
+    for (let i = 0; i < 25; i += 1) {
+      const client = track(clientFor());
+      const { response, error } = await client.send(artifact(`a-${i}`));
+      expect(error?.code, `send ${i}`).not.toBe(BTP_ERROR_CONNECTION_ENDED.code);
+      expect(JSON.stringify(response ?? error), `send ${i}`).toContain('BTP_UNKNOWN_ERROR');
+      client.destroy();
+    }
+  });
+
   it('makes a new connection for the next send once the receiver has ended one', async () => {
     const { tcp, connections } = await receiver((line, socket) => {
       echo(line, socket);
