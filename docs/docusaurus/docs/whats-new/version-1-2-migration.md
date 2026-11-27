@@ -13,6 +13,8 @@ A 1.1 provider upgrades to 1.2 without changing what it sends. A 1.2 server and 
 
 This page is our recommendation for doing it safely: what changes for you, the order to upgrade in, and the order to adopt the new features in. Every 1.2 TypeScript sample here is typechecked against the 1.2 SDK by its own tests; a 1.1 sample, shown for comparison, is marked `// 1.1`.
 
+Already on a 1.2 release candidate and using agreements? rc.4 changes how their answers travel: see [From an earlier 1.2 release candidate](#from-an-earlier-12-release-candidate).
+
 ## Before you start
 
 ### What 1.2 changes for you
@@ -282,7 +284,7 @@ Turn them on one at a time, in this order. Each is safe to turn on when its cond
 | 8   | [Details refresh](../features/detailsRefresh.md)                                                                | trusts with permissions exist, `isKnownArtifact` knows your `DETAILS_REQ`s, and `detailsResponseCheck` and `detailsRequestLimit` are registered                                                                                                                                                                                                                                                                           |
 | 9   | [Verification](../features/verification.md)                                                                     | you have a process for checking who your senders are, and a list of verifiers you trust                                                                                                                                                                                                                                                                                                                                   |
 | 10  | [Notes, discounts and BoundView](../features/notesDiscountsTemplates.md)                                        | the receivers you send them to run 1.2; to a 1.1 server they are refused, never shaped. Drop `template` from any document you add them to ([below](#dropping-template))                                                                                                                                                                                                                                                   |
-| 11  | [Agreements](../features/agreements.md) and [evidence bundles](../features/evidenceBundles.md)                  | last: trusts grant `send:agreement`, `agreementOrderCheck` is registered, and you keep every answer to build a bundle from                                                                                                                                                                                                                                                                                                |
+| 11  | [Agreements](../features/agreements.md) and [evidence bundles](../features/evidenceBundles.md)                  | last: trusts grant `send:agreement`, `agreementOrderCheck` is registered, and you keep every answer's cosignature and opened statement to build a bundle from                                                                                                                                                                                                                                                             |
 | 12  | [Key rotation](../features/keyRotation.md)                                                                      | your identity store keeps each identity's `keyChain` (`getKeyChain`), and you follow the [rules for rotating keys](#rotating-keys)                                                                                                                                                                                                                                                                                        |
 | 13  | [Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time)        | any time, on Node.js: nothing on the wire changes. Use a decrypted piece only once the whole payload has been read without an error, and read an encrypted `payload` to its end before you `await encryption`. Run every check `decryptVerify` and `signEncrypt` run, as in [start to finish](../protocol/security/decryption.md#opening-a-large-artifact-start-to-finish). Signing through a `Signer` needs `signDigest` |
 
@@ -352,6 +354,40 @@ node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --sdk-root /path/t
 ```
 
 An implementation in another language reads the vector files directly; each says in its `description` how to read its cases.
+
+## From an earlier 1.2 release candidate
+
+Since 1.2 (rc.4), an agreement's answers travel as [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures). 1.2 is not released, so the earlier format is gone, not kept beside the new one. The two do not mix: rc.4 refuses an earlier release candidate's agreements (no `salt`) and answers (a `statement` in the event), and an earlier release candidate refuses rc.4's answers (no `statement`). Upgrade every party to an agreement together, and finish or resend any agreement that is waiting for answers.
+
+**What changes on the wire:**
+
+- An agreement carries `salt`, 32 random bytes, base64, inside its content. One without it is refused, so its `contentSha256` changes.
+- An `agreement_event` carries no `statement` or `statements`. The signed statements travel on the artifact's envelope as `cosignatures`: an answer carries exactly its signer's, and a forward the ones it forwards, unchanged.
+- A statement carries `artifactId`, the id of the artifact that first delivers it. Its `previous` is the `cosignatureSha256` of the cosignature before it.
+- Every server checks each cosignature's signature on receipt and refuses one that does not hold (`BTP_ERROR_SIG_VERIFICATION`).
+- An evidence bundle holds `cosignatures` and each one's statement as text in `statements`. Its `timestamps` and `arrivals` name `cosignatureSha256`, not `statementSha256`.
+
+**What changes in code** (`@btps/sdk/trust`):
+
+| Removed in rc.4              | Use instead                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `signStatement`              | `cosign`, with the signer's `selector` and key, and the recipients' public keys                                                        |
+| `signStatementOnDevice`      | `cosign`, with the device's key and no `selector`                                                                                      |
+| `deviceStatementRecord`      | nothing: the originator adds `delegatedArtifact` to a device's cosignature when it forwards it                                         |
+| `statementRecordSha256`      | `cosignatureSha256`                                                                                                                    |
+| `statementSignatureFacts`    | nothing to call on receipt: the server checks every cosignature (`cosignaturesProblem`); a bundle's facts are `verifyEvidenceBundle`'s |
+| `BTPStatementRecord`         | `BTPCosignature`, with its statement from `decryptVerify`'s `cosigned`                                                                 |
+| `BTPStatementSignatureFacts` | the fields of each entry of `BTPEvidenceFacts.statements`                                                                              |
+
+| Changed in rc.4                 | Now                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `agreementStatementProblem`     | takes `answer: { eventType, agreement, cosignature, statement }` and `earlier: { cosignature, statement }[]` |
+| `timestampRequest`              | takes the cosignature                                                                                        |
+| `signArrival`                   | takes `cosignatureSha256` in place of `statementSha256`                                                      |
+| `buildEvidenceBundle`           | takes `cosignatures` and `statements` (the statements `decryptVerify` opened) in place of statement records  |
+| `BTPEvidenceFacts.statements[]` | gains `statementMatches`; `decision` is absent when a statement's text is not the one its cosignature signed |
+
+New in rc.4: `cosign`, `cosignatureSha256`, `cosignatureSignedPart`, `cosignaturesProblem` and its key lookup type `BTPCosignatureKeyOf`, `openCosignature`, `statementOfText`, `cosignedStatementText`, `cosignedStatementProblem`, and the types `BTPCosignature` and `BTPCosignatureRecipient`. `decryptVerify` returns `cosigned`. See the [API reference](../sdk/apiReference.md#cosign-cosignaturesha256-cosignaturesignedpart-cosignedstatementtext) and [Agreements](../features/agreements.md#the-code) for the flow in code.
 
 ## Verify your upgrade
 

@@ -1504,9 +1504,10 @@ type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
   terms: string[];
   signer: string;
+  artifactId: string; // since rc.4: the artifact that first delivers it (a device's: its delegated artifact)
   decision: 'accepted' | 'declined';
   signedAt: string;
-  previous?: string; // in a sequential agreement: the SHA-256 of the record before it
+  previous?: string; // in a sequential agreement: the cosignatureSha256 of the cosignature before it
   visualSignature?: BTPVisualSignature; // on an acceptance only
   consent?: BTPElectronicConsent; // on an acceptance only
   viewedAt?: string; // when the signer first viewed the agreement, no later than signedAt
@@ -1540,39 +1541,62 @@ type BTPSigningDevice = {
   id?: string;
 };
 
-// Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
-type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
-  | { selector: string }
-  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation } }
+// Since 1.2 (rc.4): a signer's statement as a BTPS_EVENT carries it, outside its encrypted document.
+// The statement (RFC 8785 of { statement, padding }) is encrypted once to every recipient, and the
+// signer signs the rest over that ciphertext: every BTPS server checks it on receipt (cosignaturesProblem).
+// See Cosignatures on the Transporter Artifact page.
+type BTPCosignature = {
+  ref: BTPAgreementRef; // the agreement it answers
+  signer: string;
+  artifactId: string; // the artifact that first delivers it
+  previous?: string; // the cosignatureSha256 of the cosignature before it
+  statementSha256: string; // the SHA-256 of the encrypted statement's exact text
+  recipients: BTPCosignatureRecipient[]; // the originator and every signer
+  encryption: { algorithm: 'aes-256-gcm'; iv: string; authTag: string };
+  ciphertext: string; // base64, at most 262,144 characters
+  signature: BTPSignature; // over all of it but signature and delegatedArtifact
+} & (
+  | { selector: string; delegatedArtifact?: never } // signed by the signer's identity key
+  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation }; selector?: never } // a device's, as forwarded
+  | { selector?: never; delegatedArtifact?: never } // a device's, in the delegated artifact that first delivers it
 );
 
-interface BTPStatementSignatureFacts {
-  signatureValid: boolean;
-  keyKind: 'identity' | 'device';
-  delegatedBy?: string; // a device's delegator
-  attestedBy?: string; // and its attestor, if any
-}
+// One party a cosignature's statement is encrypted to
+type BTPCosignatureRecipient = {
+  identity: string;
+  fingerprint: string; // the SHA-256 fingerprint of the key it is wrapped to
+  wrappedKey: string; // the content key, RSA-OAEP-wrapped to that key, base64
+};
+
+// cosignaturesProblem's key lookup: the public key (PEM) of identity at selector whose fingerprint is fingerprint
+type BTPCosignatureKeyOf = (
+  identity: string,
+  selector: string,
+  fingerprint: string,
+) => Promise<string | undefined>;
 
 // A public key by identity and selector: from DNS, a store, or an evidence bundle
 type BTPKeyOf = (identity: string, selector: string) => string | undefined;
 
-// An agreement's signers, how they answer, and the answers its originator's platform has taken
+// An agreement's signers, how they answer, and the answers its originator's platform has taken,
+// each by its cosignatureSha256
 type BTPAgreementAnswers = {
   signers: string[];
   signingOrder: 'any' | 'sequential';
   answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
 };
 
-// What a BTPS_EVENT carries for an agreement: an answer, or statements forwarded by its originator
+// What a BTPS_EVENT carries for an agreement: an answer, or its originator's forward.
+// Since rc.4 the statements are not in it: they travel as the artifact's cosignatures.
 type BTPAgreementEvent = {
   type: 'agreement_event';
   id: string;
   occurredAt: string;
   agreement: BTPAgreementRef;
 } & (
-  | { eventType: 'accepted'; statement: BTPStatementRecord }
-  | { eventType: 'declined'; statement: BTPStatementRecord; message?: BTPNote }
-  | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
+  | { eventType: 'accepted' }
+  | { eventType: 'declined'; message?: BTPNote }
+  | { eventType: 'agreement_progress' | 'agreement_complete' }
 );
 
 // Since 1.2: see The evidence bundle on the Transporter Artifact page
@@ -1580,9 +1604,12 @@ type BTPEvidenceBundle = {
   format: 'btps-evidence/1';
   originator: string;
   agreement: BTPAgreementDoc;
-  statements: BTPStatementRecord[];
+  cosignatures: BTPCosignature[]; // since rc.4: as they travelled, in order
+  statements: string[]; // since rc.4: statements[i] is cosignatures[i]'s opened statement, as the exact text it signed
   keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
-  timestamps?: { statementSha256: string; token: string }[]; // RFC 3161 tokens, base64
+  timestamps?: { cosignatureSha256: string; token: string }[]; // RFC 3161 tokens, base64
+  keyChains?: BTPEvidenceKeyChain[];
+  arrivals?: BTPEvidenceArrival[];
 };
 
 // What verifyEvidenceBundle reports: facts, never a verdict
@@ -1592,17 +1619,24 @@ type BTPEvidenceFacts = {
   originatorKey: BTPEvidenceKey; // the key it was checked with, from the bundle
   keysConfirmedOnline: false; // every key is the bundle's own, never looked up online
   termsAttached: boolean;
-  statements: (BTPStatementSignatureFacts & {
+  statements: {
+    signatureValid: boolean; // its cosignature is signed by its signer's key, or a device its delegation vouches for
+    keyKind: 'identity' | 'device';
+    delegatedBy?: string; // a device's delegator
+    attestedBy?: string; // and its attestor, if any
+    statementMatches: boolean; // since rc.4: its text is exactly the one its cosignature signed
     signer: string;
-    decision: 'accepted' | 'declined';
+    decision?: 'accepted' | 'declined'; // absent when its text is not the one signed
     key: BTPEvidenceKey; // the signer's identity key, or its device's key
     delegationKey?: BTPEvidenceKey; // for a device: the key its delegation was checked with
     agreementMatches: boolean;
-    termsMatch: boolean;
-    withinDeadline: boolean;
+    termsMatch: boolean; // false when its text is not the one signed
+    withinDeadline: boolean; // false when its text is not the one signed
     inOrder: boolean;
     timestamp?: BTPTimestampFacts; // when the bundle has a token for it
-  })[];
+    arrival?: { at: string; receivedBy: string; signatureValid: boolean };
+    keyChain?: BTPEvidenceKeyChainFacts;
+  }[];
   complete: boolean; // every fact holds against the bundle's own keys, and every signer accepted, once; never a timestamp
 };
 
@@ -1611,7 +1645,7 @@ type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: strin
 
 // What an RFC 3161 token shows about its statement
 type BTPTimestampFacts = {
-  imprintMatches: boolean;
+  imprintMatches: boolean; // its imprint is the statement's cosignatureSha256 (since rc.4)
   signatureValid: boolean;
   time?: string;
   authority?: string;
@@ -1706,6 +1740,7 @@ interface BTPTransporterArtifact {
   change?: true; // TRUST_REQ: a change to an active trust
   granted?: BTPPermissionName[]; // accepted TRUST_RES: the names given
   documentType?: BTPDocumentType; // BTPS_DOC under a trust with permissions
+  cosignatures?: BTPCosignature[]; // since 1.2 (rc.4), a 1.2.0 BTPS_EVENT only: signed statements, 1 to 20, checked on receipt
 }
 ```
 
@@ -2449,6 +2484,7 @@ interface BTPCryptoResponse<T = BTPDocType> {
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
   boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
+  cosigned?: (BTPAgreementStatement | null)[]; // since 1.2 (rc.4): from decryptVerify, each cosignature's statement by position, null where the receiver is not a recipient
 }
 ```
 
@@ -2898,7 +2934,7 @@ type BTPEvidenceKeyChain = {
 
 // When the bundle's builder received a statement, signed by it then (signArrival)
 type BTPEvidenceArrival = {
-  statementSha256: string;
+  cosignatureSha256: string; // since rc.4: the statement's cosignature, by its hash
   arrivedAt: string;
   receivedBy: string;
   selector: string;

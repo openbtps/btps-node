@@ -587,7 +587,7 @@ const result = await agent.command('event.send', 'billing$acme.com', event, {
 });
 ```
 
-Since 1.2, a signer's answer to an agreement travels the same way: an `agreement_event` carrying the signed statement, with `relatesTo` the id of the artifact that delivered the signer's copy. See [Agreements](../../features/agreements.md).
+Since 1.2, a signer's answer to an agreement is an `agreement_event`, with `relatesTo` the id of the artifact that delivered the signer's copy. Since 1.2 (rc.4), its signed statement is not in the event: it travels on the artifact's envelope, as its `cosignatures`, which `event.send`'s options do not include. See [Agreements](../../features/agreements.md#an-answer).
 
 ---
 

@@ -492,6 +492,8 @@ It checks an opened document against its type's schema under the artifact's vers
 
 When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
 
+Since 1.2 (rc.4), when the artifact carries `cosignatures` and `receiverKey` is given, it holds each to the document the opened event is about, opens each one the receiver (the artifact's `to`) is a recipient of (`openCosignature`), and returns their statements in `cosigned`, by position: the statement, or `null` where the receiver is not a recipient. A cosignature that names another document, or one for the receiver that does not open or is not exactly what was signed, is a `BTP_ERROR_SIG_VERIFICATION` error, with no payload. It does not check the cosignatures' signatures: the receiving server did, on receipt. See [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures).
+
 **Arguments:**
 
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
@@ -501,7 +503,7 @@ When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks a
 
 **Returns:**
 
-- `Promise<BTPCryptoResponse<T>>`: Decrypted and verified artifact and error (if any).
+- `Promise<BTPCryptoResponse<T>>`: Decrypted and verified artifact and error (if any); since 1.2, `boundView`, and since 1.2 (rc.4), `cosigned`.
 
 **Example:**
 
@@ -1757,37 +1759,63 @@ Since 1.2. The originator signs an agreement once, over `agreementRef`, and send
 
 ---
 
-### signStatement, signStatementOnDevice, deviceStatementRecord
+### cosign, cosignatureSha256, cosignatureSignedPart, cosignedStatementText
 
 ```ts
-signStatement(
-  statement: BTPAgreementStatement,
-  by: { selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
-): Promise<BTPStatementRecord>
-signStatementOnDevice(
-  statement: BTPAgreementStatement,
-  device: { pemFiles: PemKeys } | { signer: Signer }
-): Promise<{ statement: BTPAgreementStatement; signature: BTPSignature }>
-deviceStatementRecord(
-  signed: { statement: BTPAgreementStatement; signature: BTPSignature },
-  delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation }
-): BTPStatementRecord
+cosign(input: {
+  statement: BTPAgreementStatement;
+  recipients: { identity: string; publicKey: string }[];
+  by: { selector?: string } & ({ pemFiles: PemKeys } | { signer: Signer });
+}): Promise<BTPCosignature>
+cosignatureSha256(cosignature: BTPCosignature): string
+cosignatureSignedPart(cosignature: BTPCosignature): { [field: string]: unknown }
+cosignedStatementText(statement: BTPAgreementStatement): string
 ```
 
 **Description:**
-Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded. Neither checks the statement: a statement that breaks its rules, such as a `consent` on a decline or a `viewedFrom` without a `viewedAt`, still signs, and the event that carries it is refused (`BTP_ERROR_VALIDATION`). See [Agreement](../protocol/specifications/transporter-artifact.md#agreement) for the statement's fields.
+Since 1.2 (rc.4). A signer's answer to an agreement, as a cosignature. `cosign` writes the statement as `cosignedStatementText` gives it, encrypts it once with AES-256-GCM, wraps the content key with RSA-OAEP (SHA-256) to each of `recipients` (the originator and every signer, the signer included, by their public keys, PEM), and signs the cosignature over that ciphertext and the text's SHA-256. With `selector`, it signs with the signer's identity key, which may be a managed key its provider holds (`signer`). On a device, leave `selector` out and give the device's key: the cosignature then travels in the device's delegated artifact, and the originator adds `delegatedArtifact` when it forwards it. The statement's `artifactId` is the id of the artifact that first delivers it, and its `previous`, in a sequential agreement, the `cosignatureSha256` of the cosignature before it. `cosign` writes the identities on the cosignature in lower case; nothing refuses another case, as addresses are compared without case. It does not check the statement: one that breaks its rules, such as a `consent` on a decline, still signs, and its recipients' `decryptVerify` refuses it (`BTP_ERROR_SIG_VERIFICATION`).
+
+`cosignatureSha256` is the SHA-256, in lowercase hex, of a cosignature's RFC 8785 form, signature included, without `delegatedArtifact`: what the next statement names as `previous`, and what timestamps and arrivals are over. `cosignatureSignedPart` is what the signer's signature is over: the cosignature without `signature` and `delegatedArtifact`. `cosignedStatementText` is the exact text a cosignature encrypts: the RFC 8785 form of `{ statement, padding }`, `padding` being `0`s up to the next multiple of `BTPS_FIELD_LIMITS.agreement.statementPaddingBucket` (4,096) characters. The same statement always gives the same text, which is how an evidence bundle keeps it. See [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures).
 
 ---
 
-### statementRecordSha256, statementSignatureFacts
+### cosignaturesProblem
 
 ```ts
-statementRecordSha256(record: BTPStatementRecord): string
-statementSignatureFacts(record: BTPStatementRecord, keyOf: BTPKeyOf): BTPStatementSignatureFacts
+cosignaturesProblem(
+  artifact: BTPTransporterArtifact,
+  keyOf: BTPCosignatureKeyOf
+): Promise<string | undefined>
+type BTPCosignatureKeyOf = (
+  identity: string,
+  selector: string,
+  fingerprint: string
+) => Promise<string | undefined>
 ```
 
 **Description:**
-Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, signature included: what the next statement in a sequential agreement names as `previous`. `statementSignatureFacts` reports what a record's signature shows, from the record and the keys `keyOf` gives: `signatureValid`, `keyKind` (`identity`, or `device` when the record carries a delegated artifact), and for a device `delegatedBy` and `attestedBy`. A device-signed record holds when the delegation is its delegator's over the artifact, a self-delegation (signed by the signer itself) carries an attestation, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement; all of these are checked offline. It decides nothing that needs DNS: whether `delegatedBy` or `attestedBy` is the signer's domain's operator (`_btps.host` `op`) is a fact a reader may confirm online.
+Since 1.2 (rc.4). Why the cosignatures an artifact carries are not what they say, or `undefined`, checked as a BTPS server checks them on receipt, without decrypting: every server runs it in its signature step, and refuses with `BTP_ERROR_SIG_VERIFICATION`. Only a `BTPS_EVENT` carries them, at least one. Each is signed by its signer's key at its `selector`, or by a device its delegation vouches for; all name one document; a signer cosigns once; one that names `previous` follows the one before it. The document's originator may carry any of them, its own among them; anyone else carries only its own, whose `artifactId` is the artifact's `id`. A device's must have its delegation signed by its delegator, an attestation on a self-delegation, any attestation signed by its attestor, and its delegated artifact sent by the signer, signed by the device, and with the cosignature's `artifactId` as its `id`. `keyOf` gives the public key (PEM) of `identity` at `selector` whose fingerprint is `fingerprint`, or `undefined`: from DNS or a key chain. It checks no order between answers: that is `agreementOrderCheck`'s.
+
+---
+
+### openCosignature, statementOfText, cosignedStatementProblem
+
+```ts
+openCosignature(
+  cosignature: BTPCosignature,
+  receiver: { identity: string; key: BTPDecryptionKey }
+): Promise<{ statement: BTPAgreementStatement } | { problem: string } | undefined>
+statementOfText(
+  cosignature: BTPCosignature,
+  text: string
+): { statement: BTPAgreementStatement } | { problem: string }
+cosignedStatementProblem(value: unknown): string | undefined
+```
+
+**Description:**
+Since 1.2 (rc.4). `openCosignature` opens a cosignature's statement with the receiver's key (a private key, PEM, or a [Decrypter](./typesAndInterfaces.md#decrypter) with `unwrapKey`). It gives `undefined` when the receiver is not one of its recipients, and a `problem` when it is and the content key does not open, or the statement does not open. Otherwise it is `statementOfText` on what it opened. `decryptVerify` runs it for each cosignature its receiver is a recipient of.
+
+`statementOfText` gives the statement in `text`, a cosignature's opened statement as exact text (as an evidence bundle keeps it), or the problem: its SHA-256 is not the cosignature's `statementSha256`, it is not in its one RFC 8785 form, its padding is not exactly what `cosignedStatementText` writes, or its statement's agreement, signer, `artifactId` or `previous` is not the cosignature's. `cosignedStatementProblem` gives why `value` is not an opened statement, `{ statement, padding }`, as the protocol holds one (the statement's own rules, and the padding's length), or `undefined`.
 
 ---
 
@@ -1796,9 +1824,14 @@ Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, s
 ```ts
 agreementStatementProblem(
   envelope: { from: string; to: string },
-  event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
+  answer: {
+    eventType: string;
+    agreement: BTPAgreementRef;
+    cosignature: BTPCosignature;
+    statement: BTPAgreementStatement;
+  },
   agreement: BTPAgreementDoc,
-  earlier: readonly BTPStatementRecord[]
+  earlier: readonly { cosignature: BTPCosignature; statement: BTPAgreementStatement }[]
 ): string | undefined
 agreementOrderProblem(
   answer: { from: string; previous?: string },
@@ -1808,7 +1841,7 @@ agreementTurnProblem(from: string, held: BTPAgreementAnswers): string | undefine
 ```
 
 **Description:**
-Since 1.2. Why an agreement's answer does not answer it, or `undefined`: the originator's platform's checks, never the server's. `agreementTurnProblem` needs only the sender: a listed signer who has not answered, and in a sequential agreement the next one, with nothing after a decline. `agreementOrderCheck` runs it in flight. `agreementOrderProblem` adds the statement's `previous`: the SHA-256 of the answer before it in a sequential agreement, and absent in an `any` one. `agreementStatementProblem` is the full check of an opened answer: `envelope` is the answer's own `from` and `to`, `agreement` the receiver's copy, and `earlier` the statement records already taken, in order. The statement's `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256`) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, and follows the order. Signatures are not part of it: check them with `statementSignatureFacts`. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+Since 1.2. Why an agreement's answer does not answer it, or `undefined`: the originator's platform's checks, never the server's. `agreementTurnProblem` needs only the sender: a listed signer who has not answered, and in a sequential agreement the next one, with nothing after a decline. `agreementOrderCheck` runs it in flight. `agreementOrderProblem` adds the statement's `previous`: the SHA-256 of the answer before it in a sequential agreement (since rc.4, its `cosignatureSha256`), and absent in an `any` one. `agreementStatementProblem` is the full check of an opened answer: `envelope` is the answer's own `from` and `to`; `answer` is the event's `eventType` and `agreement`, with its cosignature and the statement `decryptVerify` opened from it (`cosigned`); `agreement` is the receiver's copy; and `earlier` holds the cosignatures already taken, in order, each with its opened statement. The statement's `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256`) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, and follows the order. Signatures are not part of it: the server checked each cosignature on receipt (`cosignaturesProblem`). See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
 
 ---
 
@@ -1876,21 +1909,28 @@ verifyEvidenceBundle(
   options?: { trustedTimestampRoots?: string[] }
 ): Promise<BTPEvidenceFacts>
 buildEvidenceBundle(
-  parts: { originator: string; agreement: BTPAgreementDoc; statements: BTPStatementRecord[] },
+  parts: {
+    originator: string;
+    agreement: BTPAgreementDoc;
+    cosignatures: BTPCosignature[];
+    statements: BTPAgreementStatement[];
+    keyChains?: BTPEvidenceKeyChain[];
+    arrivals?: BTPEvidenceArrival[];
+  },
   keyOf: BTPKeyOf
 ): BTPEvidenceBundle
 describeEvidenceFacts(facts: BTPEvidenceFacts): string
 ```
 
 **Description:**
-Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its signature and key kind, its agreement, terms, deadline and order, and whether the agreement is `complete`. It uses only the keys in the bundle, each counted only when its fingerprint is its own, and names each key it checked a signature with (`originatorKey`, each statement's `key` and, for a device, `delegationKey`); `keysConfirmedOnline` is always `false`, so `complete` means the bundle is consistent with its own keys, not that each key was its identity's. `buildEvidenceBundle` makes one from the opened agreement, its statement records in the order taken, and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. The deadline fact (`withinDeadline`) is judged by the statement's own `signedAt`, the signer's claim; a trusted timestamp's `time` against `acceptance.by` is independent time, which `describeEvidenceFacts` prints on the line after the statement's, as a fact and which never changes `complete`. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its cosignature's signature and key kind, whether its text is the one signed (`statementMatches`, since rc.4), its decision, agreement, terms, deadline and order, and whether the agreement is `complete`. A statement whose text is not the one signed has no `decision`, and its terms and deadline do not hold. It uses only the keys in the bundle, each counted only when its fingerprint is its own, and names each key it checked a signature with (`originatorKey`, each statement's `key` and, for a device, `delegationKey`); `keysConfirmedOnline` is always `false`, so `complete` means the bundle is consistent with its own keys, not that each key was its identity's. `buildEvidenceBundle` makes one from the opened agreement, its cosignatures in the order taken, as they travelled, each one's statement as `decryptVerify` opened it (`cosigned`), which it writes as the exact text its cosignature signed (`cosignedStatementText`), and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`), and a device's cosignature without its delegated artifact (`BTP_ERROR_VALIDATION`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. The deadline fact (`withinDeadline`) is judged by the statement's own `signedAt`, the signer's claim; a trusted timestamp's `time` against `acceptance.by` is independent time, which `describeEvidenceFacts` prints on the line after the statement's, as a fact and which never changes `complete`. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
 
 ---
 
 ### timestampRequest, timestampTokenOf, timestampFacts
 
 ```ts
-timestampRequest(record: BTPStatementRecord, options?: { nonce?: number }): Promise<Uint8Array>
+timestampRequest(cosignature: BTPCosignature, options?: { nonce?: number }): Promise<Uint8Array>
 timestampTokenOf(response: Uint8Array): Promise<string>
 timestampFacts(
   token: string,
@@ -1900,7 +1940,7 @@ timestampFacts(
 ```
 
 **Description:**
-Since 1.2. RFC 3161 trusted timestamps on an agreement's statements. `timestampRequest` builds a DER TimeStampReq over the SHA-256 of a statement record, asking for the authority's certificate; only that hash leaves the provider. The platform sends it to the authority of its choice (`Content-Type: application/timestamp-query`) and gives the reply to `timestampTokenOf`, which returns the token, base64, as a bundle holds it, and refuses a reply that grants none (`BTP_ERROR_VALIDATION`). `timestampFacts` reports facts, never refusing: `imprintMatches` (the token is over this statement), `signatureValid` (signed by the certificate it carries, over a TSTInfo, as its signed content type says), `time`, `authority`, `timestampingKeyUsage` (that certificate's one extended key usage is `id-kp-timeStamping`, critical, as RFC 3161 §2.3 requires of an authority), and, with `trustedRoots`, `trusted` (an authority's certificate, with `timestampingKeyUsage`, that is one of them or chains to one). An unreadable token reports both checks false. `pkijs` and `asn1js` read the tokens, loaded only when a timestamp is used.
+Since 1.2. RFC 3161 trusted timestamps on an agreement's statements. `timestampRequest` builds a DER TimeStampReq over a cosignature's `cosignatureSha256` (since rc.4), asking for the authority's certificate; only that hash leaves the provider. `timestampFacts`' second argument, `statementSha256`, is that same `cosignatureSha256`. The platform sends it to the authority of its choice (`Content-Type: application/timestamp-query`) and gives the reply to `timestampTokenOf`, which returns the token, base64, as a bundle holds it, and refuses a reply that grants none (`BTP_ERROR_VALIDATION`). `timestampFacts` reports facts, never refusing: `imprintMatches` (the token is over this statement), `signatureValid` (signed by the certificate it carries, over a TSTInfo, as its signed content type says), `time`, `authority`, `timestampingKeyUsage` (that certificate's one extended key usage is `id-kp-timeStamping`, critical, as RFC 3161 §2.3 requires of an authority), and, with `trustedRoots`, `trusted` (an authority's certificate, with `timestampingKeyUsage`, that is one of them or chains to one). An unreadable token reports both checks false. `pkijs` and `asn1js` read the tokens, loaded only when a timestamp is used.
 
 ---
 
@@ -2049,13 +2089,13 @@ Since 1.2. An identity's keys form a signed chain its host serves; see [Key rota
 
 ```ts
 signArrival(
-  arrival: { statementSha256: string; arrivedAt: string; receivedBy: string; selector: string },
+  arrival: { cosignatureSha256: string; arrivedAt: string; receivedBy: string; selector: string },
   holder: BTPKeyHolder,
 ): Promise<BTPEvidenceArrival>
 ```
 
 **Description:**
-Since 1.2. A platform's signed record that it received an agreement statement at `arrivedAt`, signed by `receivedBy` (the party that received it) under `selector`. Sign one when each statement arrives and keep it for the evidence bundle's `arrivals`: it is the receiver's own record, independent of the signer. See [Evidence bundles](../features/evidenceBundles.md).
+Since 1.2. A platform's signed record that it received an agreement statement at `arrivedAt`, signed by `receivedBy` (the party that received it) under `selector`. Since rc.4 it names the statement's cosignature by its `cosignatureSha256`. Sign one when each cosignature arrives and keep it for the evidence bundle's `arrivals`: it is the receiver's own record, independent of the signer. See [Evidence bundles](../features/evidenceBundles.md).
 
 ---
 
@@ -2422,7 +2462,7 @@ const BTP_ERROR_SIG_VERIFICATION: BTPError;
 ```
 
 **Description:**
-Error constant for signature verification failures.
+Error constant for signature verification failures. Since 1.2 (rc.4), also a server's refusal of an artifact whose cosignatures do not hold (`cosignaturesProblem`), and `decryptVerify`'s of a cosignature for its receiver that does not open to exactly what was signed; `meta.reason` says which rule broke.
 
 **Properties:**
 

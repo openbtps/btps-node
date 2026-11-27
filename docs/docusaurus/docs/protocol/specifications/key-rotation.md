@@ -207,7 +207,7 @@ An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) 
 
   Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
 
-- **`arrivals`**: `[{ statementSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", statementSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set.
+- **`arrivals`**: `[{ cosignatureSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement's cosignature arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", cosignatureSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set. Since 1.2 (rc.4) it names the cosignature by its [`cosignatureSha256`](./transporter-artifact.md#the-chain).
 
 For each signing key (the originator's, and each statement's: a device's is its delegator's), with its identity's chain in the bundle:
 

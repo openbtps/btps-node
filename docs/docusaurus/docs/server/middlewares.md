@@ -74,7 +74,7 @@ flowchart TD
   E --> F[Verify Signature]
   F --> G[after:signatureVerification]
   G --> F2{Signature valid?}
-  F2 -- no --> X3[A signature error, e.g. BTP_ERROR_SIG_VERIFICATION, or since 1.2 a key its chain retired or revoked]
+  F2 -- no --> X3[A signature error, e.g. BTP_ERROR_SIG_VERIFICATION, a cosignature that does not hold since rc.4, or since 1.2 a key its chain retired or revoked]
   F2 -- yes --> W{issuedAt within maxArtifactAgeSeconds?}
   W -- no --> X4[BTP_ERROR_ARTIFACT_TIME_WINDOW]
   W -- yes --> H[before:trustVerification]
@@ -94,7 +94,7 @@ A middleware that sends a response itself stops processing at that point. If you
 
 The server also limits how many requests one connection may have in progress (`maxInFlightPerConnection`, 32 by default): at the limit it stops reading from that connection until one finishes. Since 1.2, it ends a connection after `maxConsecutiveInvalidLines` lines in a row it cannot read (10 by default).
 
-Since 1.2, the signature step checks each arriving key against its identity's key chain (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`), and the trust step checks trust permissions: a grant (`BTP_ERROR_PERMISSION_REQUIRED`), a send's document type (`BTP_ERROR_PERMISSION`, `BTP_ERROR_DOCUMENT_TYPE_MISMATCH`) and the details a refresh names (`BTP_ERROR_DETAILS_NOT_HELD`). The checks that need your platform's own records are middleware you add (see below).
+Since 1.2, the signature step checks each arriving key against its identity's key chain (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`). Since 1.2 (rc.4), it also checks every cosignature a `BTPS_EVENT` carries, an agreement's signed statements, without decrypting (`BTP_ERROR_SIG_VERIFICATION`, see [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures)). The trust step checks trust permissions: a grant (`BTP_ERROR_PERMISSION_REQUIRED`), a send's document type (`BTP_ERROR_PERMISSION`, `BTP_ERROR_DOCUMENT_TYPE_MISMATCH`) and the details a refresh names (`BTP_ERROR_DETAILS_NOT_HELD`). The checks that need your platform's own records are middleware you add (see below).
 
 ## Middleware Types & Structure
 

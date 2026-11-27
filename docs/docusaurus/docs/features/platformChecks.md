@@ -158,7 +158,7 @@ The feature journey (`tests/e2e/features.e2e.test.ts`) checks that a caching res
 | The server checks                                     | Your platform checks                                                                      |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | structure, by the artifact's kind; size, age, version | an invoice's events: `eventChainCheck`                                                    |
-| signatures, delegations and attestations              | details responses against the requests you sent: `detailsResponseCheck`                   |
+| signatures, delegations, attestations, cosignatures   | details responses against the requests you sent: `detailsResponseCheck`                   |
 | the trust and its permissions; `isKnownArtifact`      | an agreement's order: `agreementOrderCheck`, then `agreementStatementProblem` once opened |
 | in-flight, invalid-line and size limits               | your own limits: `detailsRequestLimit`                                                    |
 
