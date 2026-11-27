@@ -15,7 +15,14 @@
  */
 
 import crypto from 'crypto';
-import { decryptRSA, encryptRSA, getFingerprintFromPem, signBtpPayload, signBtpPayloadWithSigner, verifySignature } from '@core/crypto/index.js';
+import {
+  decryptRSA,
+  encryptRSA,
+  getFingerprintFromPem,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
+  verifySignature,
+} from '@core/crypto/index.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
 import type { BTPSignature, PemKeys } from '@core/crypto/types.js';
 import type { BTPDecryptionKey } from '@core/crypto/types.js';
@@ -29,14 +36,28 @@ import type { BTPAgreementRef, BTPAgreementStatement, BTPCosignature } from './t
 /** A key to sign with: a PEM pair, or a Signer for a key held elsewhere. */
 type SigningKey = { pemFiles: PemKeys } | { signer: Signer };
 
-/** The public key (PEM) of `identity` at `selector` whose fingerprint is `fingerprint`, or undefined: DNS, key chains. */
-export type BTPCosignatureKeyOf = (identity: string, selector: string, fingerprint: string) => Promise<string | undefined>;
+/**
+ * The public key (PEM) of `identity` at `selector` whose fingerprint is `fingerprint`, or undefined: DNS, key chains.
+ * `forwarded` is true for a cosignature an earlier artifact first delivered (its `artifactId` is not the carrier's):
+ * its key is taken by its history, so a key since rotated away as planned still holds and only a compromised one is
+ * refused, as an evidence bundle takes it. A cosignature made now is held to the live rules.
+ */
+export type BTPCosignatureKeyOf = (
+  identity: string,
+  selector: string,
+  fingerprint: string,
+  forwarded: boolean,
+) => Promise<string | undefined>;
 
 const sha256Hex = (text: string) => crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 
 /** What a cosignature's signature is over: all of it but its signature and a forwarded device's delegated artifact. */
 export const cosignatureSignedPart = (cosignature: BTPCosignature) =>
-  Object.fromEntries(Object.entries(cosignature).filter(([key]) => key !== 'signature' && key !== 'delegatedArtifact'));
+  Object.fromEntries(
+    Object.entries(cosignature).filter(
+      ([key]) => key !== 'signature' && key !== 'delegatedArtifact',
+    ),
+  );
 
 /**
  * Since 1.2 (rc.4): the SHA-256, lowercase hex, of a cosignature's RFC 8785 form, signature included, without a
@@ -44,7 +65,11 @@ export const cosignatureSignedPart = (cosignature: BTPCosignature) =>
  */
 export const cosignatureSha256 = (cosignature: BTPCosignature): string =>
   sha256Hex(
-    canonicalizeValue(Object.fromEntries(Object.entries(cosignature).filter(([key]) => key !== 'delegatedArtifact'))),
+    canonicalizeValue(
+      Object.fromEntries(
+        Object.entries(cosignature).filter(([key]) => key !== 'delegatedArtifact'),
+      ),
+    ),
   );
 
 /**
@@ -55,11 +80,16 @@ export const cosignatureSha256 = (cosignature: BTPCosignature): string =>
 export const cosignedStatementText = (statement: BTPAgreementStatement): string => {
   const bucket = BTPS_FIELD_LIMITS.agreement.statementPaddingBucket;
   const bare = canonicalizeValue({ statement, padding: '' });
-  return canonicalizeValue({ statement, padding: '0'.repeat((bucket - (bare.length % bucket)) % bucket) });
+  return canonicalizeValue({
+    statement,
+    padding: '0'.repeat((bucket - (bare.length % bucket)) % bucket),
+  });
 };
 
 const sign = (payload: unknown, key: SigningKey): Promise<BTPSignature> =>
-  'signer' in key ? signBtpPayloadWithSigner(payload, key.signer) : Promise.resolve(signBtpPayload(payload, key.pemFiles));
+  'signer' in key
+    ? signBtpPayloadWithSigner(payload, key.signer)
+    : Promise.resolve(signBtpPayload(payload, key.pemFiles));
 
 /**
  * Since 1.2 (rc.4): a signer's cosignature on `statement`, encrypted to every one of `recipients` (the originator,
@@ -102,6 +132,13 @@ export const cosign = async (input: {
   return { ...unsigned, signature: await sign(unsigned, by) } as BTPCosignature;
 };
 
+/** A key lookup for one cosignature, whether it is forwarded already decided. */
+type KeyFor = (
+  identity: string,
+  selector: string,
+  fingerprint: string,
+) => Promise<string | undefined>;
+
 const isValid = (payload: unknown, signature: BTPSignature, key: string | undefined) =>
   key !== undefined && verifySignature(payload, signature, key).isValid;
 
@@ -110,19 +147,27 @@ const sameRef = (a: BTPAgreementRef, b: BTPAgreementRef) =>
 
 /** Why a forwarded device's cosignature is not its device's, under the delegation of the artifact that delivered it. */
 const deviceProblem = async (
-  cosignature: BTPCosignature & { delegatedArtifact: NonNullable<BTPCosignature['delegatedArtifact']> },
-  keyOf: BTPCosignatureKeyOf,
+  cosignature: BTPCosignature & {
+    delegatedArtifact: NonNullable<BTPCosignature['delegatedArtifact']>;
+  },
+  keyOf: KeyFor,
 ): Promise<string | undefined> => {
   const { delegation, ...artifact } = cosignature.delegatedArtifact;
   const { signature: delegationSignature, attestation, ...unsignedDelegation } = delegation;
   const { signature: artifactSignature, ...unsignedArtifact } = artifact;
-  if (!sameIdentity(artifact.from, cosignature.signer)) return 'a device cosignature is sent by its signer';
-  if (artifact.id !== cosignature.artifactId) return 'a device cosignature names the delegated artifact that delivered it';
+  if (!sameIdentity(artifact.from, cosignature.signer))
+    return 'a device cosignature is sent by its signer';
+  if (artifact.id !== cosignature.artifactId)
+    return 'a device cosignature names the delegated artifact that delivered it';
   // A server refuses a self-delegation without an attestation, so this does too.
   if (sameIdentity(delegation.signedBy, artifact.from) && attestation === undefined) {
     return 'a self-delegation carries an attestation';
   }
-  const delegator = await keyOf(delegation.signedBy, delegation.selector, delegationSignature.fingerprint);
+  const delegator = await keyOf(
+    delegation.signedBy,
+    delegation.selector,
+    delegationSignature.fingerprint,
+  );
   if (!isValid({ ...artifact, delegation: unsignedDelegation }, delegationSignature, delegator)) {
     return "a device cosignature's delegation is its delegator's";
   }
@@ -145,10 +190,14 @@ const deviceProblem = async (
 const signatureProblem = async (
   cosignature: BTPCosignature,
   artifact: BTPTransporterArtifact,
-  keyOf: BTPCosignatureKeyOf,
+  keyOf: KeyFor,
 ): Promise<string | undefined> => {
   if (cosignature.selector !== undefined) {
-    const key = await keyOf(cosignature.signer, cosignature.selector, cosignature.signature.fingerprint);
+    const key = await keyOf(
+      cosignature.signer,
+      cosignature.selector,
+      cosignature.signature.fingerprint,
+    );
     return isValid(cosignatureSignedPart(cosignature), cosignature.signature, key)
       ? undefined
       : 'a cosignature is signed by its signer';
@@ -157,10 +206,18 @@ const signatureProblem = async (
     return deviceProblem(cosignature as Parameters<typeof deviceProblem>[0], keyOf);
   }
   // Neither: a device's, in the delegated artifact that first delivers it. The server checked that delegation.
-  if (!artifact.delegation || artifact.id !== cosignature.artifactId || !sameIdentity(artifact.from, cosignature.signer)) {
+  if (
+    !artifact.delegation ||
+    artifact.id !== cosignature.artifactId ||
+    !sameIdentity(artifact.from, cosignature.signer)
+  ) {
     return "a cosignature names its signer's key, or comes in its device's own delegated artifact";
   }
-  return isValid(cosignatureSignedPart(cosignature), cosignature.signature, artifact.delegation.agentPubKey)
+  return isValid(
+    cosignatureSignedPart(cosignature),
+    cosignature.signature,
+    artifact.delegation.agentPubKey,
+  )
     ? undefined
     : 'a device cosignature is signed by its device';
 };
@@ -181,7 +238,8 @@ export const cosignaturesProblem = async (
   if (artifact.type !== 'BTPS_EVENT') return 'only a BTPS_EVENT carries cosignatures';
   const [first] = cosignatures;
   if (first === undefined) return 'cosignatures are at least one';
-  if (cosignatures.some(({ ref }) => !sameRef(ref, first.ref))) return 'cosignatures name one document';
+  if (cosignatures.some(({ ref }) => !sameRef(ref, first.ref)))
+    return 'cosignatures name one document';
   const signers = cosignatures.map(({ signer }) => signer.toLowerCase());
   if (new Set(signers).size !== signers.length) return 'a signer cosigns once';
   // Its originator forwards any of them, its own among them when it signs too; anyone else carries its own answer only.
@@ -189,14 +247,24 @@ export const cosignaturesProblem = async (
     const own = cosignatures.find(({ signer }) => sameIdentity(signer, artifact.from));
     if (own === undefined) return "cosignatures are forwarded by their document's originator";
     if (cosignatures.length !== 1) return "a signer's answer carries its own cosignature only";
-    if (own.artifactId !== artifact.id) return "a signer's cosignature names the artifact that delivers it";
+    if (own.artifactId !== artifact.id)
+      return "a signer's cosignature names the artifact that delivers it";
   }
   for (const [index, cosignature] of cosignatures.entries()) {
     const before = cosignatures[index - 1];
-    if (before !== undefined && cosignature.previous !== undefined && cosignature.previous !== cosignatureSha256(before)) {
+    if (
+      before !== undefined &&
+      cosignature.previous !== undefined &&
+      cosignature.previous !== cosignatureSha256(before)
+    ) {
       return 'a cosignature that names previous follows the one before it';
     }
-    const problem = await signatureProblem(cosignature, artifact, keyOf);
+    const forwarded = cosignature.artifactId !== artifact.id;
+    const problem = await signatureProblem(
+      cosignature,
+      artifact,
+      (identity, selector, fingerprint) => keyOf(identity, selector, fingerprint, forwarded),
+    );
     if (problem) return problem;
   }
   return undefined;
@@ -226,7 +294,9 @@ export const openCosignature = async (
     wrappedKey?: string;
   },
 ): Promise<{ statement: BTPAgreementStatement } | { problem: string } | undefined> => {
-  const recipient = cosignature.recipients.find(({ identity }) => sameIdentity(identity, receiver.identity));
+  const recipient = cosignature.recipients.find(({ identity }) =>
+    sameIdentity(identity, receiver.identity),
+  );
   if (recipient === undefined) return undefined;
   const contentKey = await unwrap(receiver.wrappedKey ?? recipient.wrappedKey, receiver.key);
   if (contentKey === undefined) return { problem: 'its content key does not open with your key' };
@@ -235,7 +305,10 @@ export const openCosignature = async (
     const { iv, authTag } = cosignature.encryption;
     const decipher = crypto.createDecipheriv('aes-256-gcm', contentKey, Buffer.from(iv, 'base64'));
     decipher.setAuthTag(Buffer.from(authTag, 'base64'));
-    text = Buffer.concat([decipher.update(Buffer.from(cosignature.ciphertext, 'base64')), decipher.final()]).toString('utf8');
+    text = Buffer.concat([
+      decipher.update(Buffer.from(cosignature.ciphertext, 'base64')),
+      decipher.final(),
+    ]).toString('utf8');
   } catch {
     return { problem: 'its statement does not open' };
   }
@@ -261,7 +334,8 @@ export const statementOfText = (
   cosignature: BTPCosignature,
   text: string,
 ): { statement: BTPAgreementStatement } | { problem: string } => {
-  if (sha256Hex(text) !== cosignature.statementSha256) return { problem: 'its statement is not the one it signed' };
+  if (sha256Hex(text) !== cosignature.statementSha256)
+    return { problem: 'its statement is not the one it signed' };
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -269,13 +343,19 @@ export const statementOfText = (
     return { problem: 'its statement is not JSON' };
   }
   const opened = BtpCosignedStatementSchema.safeParse(parsed);
-  if (!opened.success || canonicalizeValue(parsed) !== text) return { problem: 'its statement is not in its one form' };
+  if (!opened.success || canonicalizeValue(parsed) !== text)
+    return { problem: 'its statement is not in its one form' };
   // Padded as it must be: '0's only, up to a whole bucket, as cosignedStatementText makes it.
-  if (text !== cosignedStatementText(opened.data.statement)) return { problem: 'its statement is not padded to its bucket' };
+  if (text !== cosignedStatementText(opened.data.statement))
+    return { problem: 'its statement is not padded to its bucket' };
   const { statement } = opened.data;
-  if (!sameRef(statement.agreement, cosignature.ref)) return { problem: 'its statement names another document' };
-  if (!sameIdentity(statement.signer, cosignature.signer)) return { problem: "its statement is another signer's" };
-  if (statement.artifactId !== cosignature.artifactId) return { problem: 'its statement names another artifact' };
-  if (statement.previous !== cosignature.previous) return { problem: 'its statement follows another' };
+  if (!sameRef(statement.agreement, cosignature.ref))
+    return { problem: 'its statement names another document' };
+  if (!sameIdentity(statement.signer, cosignature.signer))
+    return { problem: "its statement is another signer's" };
+  if (statement.artifactId !== cosignature.artifactId)
+    return { problem: 'its statement names another artifact' };
+  if (statement.previous !== cosignature.previous)
+    return { problem: 'its statement follows another' };
   return { statement };
 };

@@ -1248,10 +1248,18 @@ export class BtpsServer {
     );
     if (!isValid || artifact.cosignatures === undefined) return { isValid, error };
     // Since 1.2 (rc.4): every cosignature it carries, checked here as its own signature is, without decrypting.
-    const problem = await cosignaturesProblem(artifact, async (identity, selector) => {
-      const { key } = await checkedSignatureKey(identity, selector, this.keyResolver, this.keyChains);
-      return key;
-    });
+    const problem = await cosignaturesProblem(
+      artifact,
+      async (identity, selector, _fingerprint, forwarded) => {
+        // A forwarded cosignature's key by its history: rotated away as planned still holds; compromised never does.
+        const keyChains =
+          forwarded && this.keyChains
+            ? { ...this.keyChains, retiredKeyGraceSeconds: Infinity }
+            : this.keyChains;
+        const { key } = await checkedSignatureKey(identity, selector, this.keyResolver, keyChains);
+        return key;
+      },
+    );
     if (!problem) return { isValid, error };
     return {
       isValid: false,

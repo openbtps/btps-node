@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -28,6 +29,7 @@ import {
   BTP_ERROR_KEY_RETIRED,
   BTP_ERROR_KEY_REVOKED,
   BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_SIG_VERIFICATION,
 } from '../../src/core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
 import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
@@ -284,6 +286,73 @@ describe('journey: keys rotate along a signed chain', () => {
     });
   });
 
+  it("takes a forwarded cosignature by its key's history: rotated away as planned still holds, compromised never does, and a new one keeps the live rules", async () => {
+    // Jane's j1 was rotated away 30 seconds ago, past the strict receiver's 5 seconds' grace; j2 is compromised.
+    const ref = { originator: VENDOR, id: 'AGR-ROTATED', contentSha256: 'b'.repeat(64) };
+    const parties = [
+      { identity: VENDOR, publicKey: k3.publicKey },
+      { identity: JANE, publicKey: j3.publicKey },
+    ];
+    const cosignedWith = (keys: Keys, selector: string, artifactId: string) =>
+      cosign({
+        statement: {
+          agreement: ref,
+          terms: [],
+          signer: JANE,
+          artifactId,
+          decision: 'accepted',
+          signedAt: secondsAgo(60),
+        },
+        recipients: parties,
+        by: { selector, pemFiles: keys },
+      });
+    const event = async (
+      from: User,
+      cosignature: Awaited<ReturnType<typeof cosign>>,
+      id: string,
+    ) => {
+      const relatesTo = randomUUID();
+      strictHost.trustStore.remember({ id: relatesTo, from: from.identity, to: strict.identity });
+      const artifact = await artifactFrom(
+        from,
+        strict.identity,
+        'BTPS_EVENT',
+        {
+          type: 'agreement_event',
+          id,
+          occurredAt: new Date().toISOString(),
+          eventType: 'agreement_progress',
+          agreement: ref,
+        },
+        { extra: { id, relatesTo, cosignatures: [cosignature] } },
+      );
+      return (await deliver(artifact)).response?.status;
+    };
+
+    // The vendor, its originator, forwards what Jane signed before her keys moved on.
+    const forward = randomUUID();
+    expect(
+      await event(vendorAt(k3, 'btps3'), await cosignedWith(j1, 'btps1', randomUUID()), forward),
+    ).toMatchObject({ ok: true });
+    expect(
+      await event(
+        vendorAt(k3, 'btps3'),
+        await cosignedWith(j2, 'btps2', randomUUID()),
+        randomUUID(),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: BTP_ERROR_SIG_VERIFICATION.code,
+    });
+    // Jane answering now with the key she rotated away is held to the grace like any signature made now.
+    const fresh = randomUUID();
+    const janeNow: User = { identity: JANE, keys: j3, selector: 'btps3', provider: vendorHost };
+    expect(await event(janeNow, await cosignedWith(j1, 'btps1', fresh), fresh)).toMatchObject({
+      ok: false,
+      error: BTP_ERROR_SIG_VERIFICATION.code,
+    });
+  });
+
   it('keeps an agreement signed with keys since rotated away checking offline, its chains and their answers in its evidence', async () => {
     // Signed before the rotations, with keys DNS no longer has.
     const agreement = await signAgreement(
@@ -299,13 +368,13 @@ describe('journey: keys rotate along a signed chain', () => {
       { originator: VENDOR, selector: 'btps1', pemFiles: k1 },
     );
     const said = {
-        agreement: agreementRef(agreement, VENDOR),
-        terms: [],
-        signer: JANE,
-        decision: 'accepted' as const,
-        signedAt: secondsAgo(500),
-        artifactId: '00000000-0000-4000-8000-0000000000a1',
-      };
+      agreement: agreementRef(agreement, VENDOR),
+      terms: [],
+      signer: JANE,
+      decision: 'accepted' as const,
+      signedAt: secondsAgo(500),
+      artifactId: '00000000-0000-4000-8000-0000000000a1',
+    };
     const statement = await cosign({
       statement: said,
       recipients: [
