@@ -26,7 +26,7 @@
     "signed-artifacts.vector.json": "5876fb3439adac0559110aaa8636cf983624728592587c41af161cfe65877ea7",
     "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
-    "trust-permissions.vectors.json": "4b333ae0adb7cd2fe8a25335e28553fec082581fcdff1f00e575611016213732",
+    "trust-permissions.vectors.json": "5a426e5c18d8eb36643e477a5df39200d69b7c79a1800b38b4feb91f0cf46199",
     "versions.vectors.json": "e5ec2fd93ad00b76c27ccb2e5bd625f6465e1991e4e69b643ffa8f7473df94fb"
   }
 }

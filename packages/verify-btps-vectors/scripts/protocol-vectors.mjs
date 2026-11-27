@@ -2107,7 +2107,7 @@ export function trustPermissions() {
   });
   return {
     description:
-      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`. An organisation's request is held to this by its envelope; a person's by the receiving server, which takes it without anything given when the receiver is an organisation (a person asking an organisation gives nothing in return), and so its envelope cases here are accepted. A `1.2.0` `TRUST_REQ` always carries `permissions`; one that asks for everything is a `1.1.0` request. `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`. An organisation's request is held to this by its envelope; a person's by the receiving server, which takes it without anything given when the receiver is an organisation (a person asking an organisation gives nothing in return), and so its envelope cases here are accepted. A `1.2.0` `TRUST_REQ` always carries `permissions`; one that asks for everything is a `1.1.0` request. `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted, and so is a request that gives a detail or an answer that grants one, since its values are in its document (a request's 1.1 fields included). `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
     envelopes: [
       named('request', request, 'accept'),
       named(
@@ -2306,6 +2306,17 @@ export function trustPermissions() {
         'a request with own values is encrypted',
       ),
       named(
+        'request-giving-details-unencrypted',
+        {
+          ...request,
+          given: ['detail:legalName', 'detail:email', 'detail:phone', 'detail:address'],
+          encryption: null,
+          document: { ...base.trustRequest, address: '1 Kauri Street, Wellington' },
+        },
+        'refuse',
+        'a request that gives details is encrypted',
+      ),
+      named(
         'request-carrying-granted',
         { ...request, granted },
         'refuse',
@@ -2400,6 +2411,12 @@ export function trustPermissions() {
         { ...response, encryption: null, document: responseDoc },
         'refuse',
         'a response with details is encrypted',
+      ),
+      named(
+        'response-granting-details-unencrypted',
+        { ...response, encryption: null, document: base.trustResponse },
+        'refuse',
+        'an answer that grants details is encrypted',
       ),
       named(
         'response-carrying-given',

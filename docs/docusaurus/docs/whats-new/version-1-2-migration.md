@@ -25,6 +25,7 @@ This page is our recommendation for doing it safely: what changes for you, the o
 - [ ] An error you throw, or pass on as caught, reaches the sender only as a BTPS constant, else as the generic 500.
 - [ ] A connection that sends 10 unreadable lines in a row is answered and ended (`maxConsecutiveInvalidLines`).
 - [ ] `isKnownArtifact` is also asked about the `DETAILS_REQ` a `DETAILS_RES` answers.
+- [ ] A trust request that gives details (`given`), or an answer that grants one, goes encrypted to its receiver: in the clear it is refused with `BTP_ERROR_VALIDATION`, even when its values are only in the 1.1 fields. A device passes `encryption` with `given`, or with a `detail:` name in `granted`. A request shaped for a 1.1 receiver names no details.
 - [ ] An answer you build in a shape no answer allows goes to its sender as a generic `btps_error`, and the connection stays open.
 - [ ] A refresh never makes a revoked or blocked device accepted again, and `keyHistory[].firstSeen` is when a retired key came into use.
 - [ ] Your `TokenStore` can add `isConsumed` and `markSuccessor`, and record `consumedAt`, to detect stolen refresh tokens.

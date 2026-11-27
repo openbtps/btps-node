@@ -162,6 +162,28 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     message: 'details.respond is always encrypted to the requester: options.encryption is required',
     path: ['options', 'encryption'],
   })
+  // Details are never in the clear: a request that gives them, or an answer that grants them,
+  // carries their values, so it is encrypted to its receiver.
+  .refine(
+    (data) =>
+      data.actionType !== 'trust.request' ||
+      !data.options?.given?.length ||
+      data.options?.encryption,
+    {
+      message: 'a trust.request that gives details is encrypted: options.encryption is required',
+      path: ['options', 'encryption'],
+    },
+  )
+  .refine(
+    (data) =>
+      data.actionType !== 'trust.respond' ||
+      !data.options?.granted?.some((name: string) => name.startsWith('detail:')) ||
+      data.options?.encryption,
+    {
+      message: 'a trust.respond that grants details is encrypted: options.encryption is required',
+      path: ['options', 'encryption'],
+    },
+  )
   .refine(
     (data) =>
       data.options?.documentType === undefined ||
