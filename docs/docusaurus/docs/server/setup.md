@@ -74,19 +74,24 @@ The `BtpsServer` class accepts the following options:
 | `middlewarePath`             | `string`                | No       | Path to the middleware file (default: `btps.middleware.mjs` in the working directory; a missing default file is skipped)                                              |
 | `onError`                    | `function`              | No       | Error handler. When set, the server no longer also writes each failed artifact to `console.error`                                                                     |
 | `connectionTimeoutMs`        | `number`                | No       | Closes a connection after this long with no request being handled (default: 30000)                                                                                    |
-| `maxArtifactSizeKb`          | `number`                | No       | The largest artifact accepted, in KB (default: 5120, minimum: 1024)                                                                                                   |
+| `maxArtifactSizeKb`          | `number`                | No       | The largest artifact accepted, in KB (since 1.2, default and minimum: 65536, that is 64 MB; 1.1: 5120, minimum 1024). Raising it for very large artifacts: [size the server for it](../features/platformChecks.md#the-servers-own-limits) |
 | `maxArtifactAgeSeconds`      | `number`                | No       | How far `issuedAt` may be from the server's clock (default: 300, minimum: 60)                                                                                         |
 | `maxInFlightPerConnection`   | `number`                | No       | Requests one connection may have handled at once (default: 32, minimum: 1)                                                                                            |
+| `maxArtifactsInFlight`       | `number`                | No       | Since 1.2: artifacts the whole server may read and handle at once, over every connection (default: 2, minimum: 1)                                                     |
+| `maxArtifactsWaiting`        | `number`                | No       | Since 1.2: artifacts that may wait for a place; the next is refused with 503 (default: 100, minimum: 0)                                                               |
 | `signAnswers`                | `boolean`               | No       | Since 1.2: sign every answer, for devices that require it (`requireSignedBy`). Needs `serverIdentity.selector`                                                        |
 | `keyResolver`                | `BtpsKeyResolver`       | No       | Since 1.2: finds every key the server checks, in place of its own lookup (DNS, then the identity's host), so you can cache them                                       |
 | `entityTypeOf`               | `function`              | No       | Since 1.2: whether one of your addresses is a `person` or an `organisation`                                                                                           |
 | `maxConsecutiveInvalidLines` | `number`                | No       | Since 1.2: unreadable lines in a row before the connection is ended (default: 10)                                                                                     |
 | `retiredKeyGraceSeconds`     | `number`                | No       | Since 1.2: how long a key rotated away as planned still signs (default: 86400)                                                                                        |
 | `keyChainMaxCacheSeconds`    | `number`                | No       | Since 1.2: the longest a key chain is trusted from a cache (default: 300)                                                                                             |
+| `maxAttachments`             | `BTPAttachmentLimits`   | No       | Since 1.2: attachments a `1.2.0` document may carry here, one number or one for each type (default: 20 of each, minimum: 20, maximum: 1000)                          |
 
 Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 
-Receiving large documents, such as agreements carrying several PDFs: raise `maxArtifactSizeKb` deliberately, and size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)).
+Since 1.2, every server takes artifacts up to 64 MB, about 30 MB of files once encoded and encrypted, and reads 2 at once unless `maxArtifactsInFlight` says otherwise. Receiving larger documents, such as agreements carrying many PDFs: raise `maxArtifactSizeKb` deliberately, size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)), and set `maxArtifactsInFlight` so it reads no more at once than its memory holds ([Sizing a server for very large artifacts](../features/platformChecks.md#the-servers-own-limits)).
+
+Receiving documents with more than 20 attachments: every receiver takes 20 of each type, and `maxAttachments` takes more, up to 1000. The server counts an unencrypted document's attachments on arrival; an encrypted one is counted where it is opened, so give `decryptVerify` the same number ([Attachments](../protocol/specifications/limits.md#attachments)).
 
 **Example:**
 

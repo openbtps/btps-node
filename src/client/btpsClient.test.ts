@@ -8,7 +8,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import tls from 'tls';
-import split2 from 'split2';
 import { BtpsClient } from './btpsClient.js';
 import { BTPErrorException, BTP_ERROR_CONNECTION_CLOSED } from '../core/error/index.js';
 import * as utils from '../core/utils/index.js';
@@ -18,12 +17,10 @@ import type { BTPArtifact } from '../core/server/types.js';
 
 // --- Mocks ---
 vi.mock('tls');
-vi.mock('split2');
 vi.mock('../core/utils/index');
 
 const mockTls = vi.mocked(tls);
 const mockUtils = vi.mocked(utils);
-const mockSplit2 = vi.fn();
 
 describe('BtpsClient', () => {
   let client: BtpsClient;
@@ -77,8 +74,6 @@ describe('BtpsClient', () => {
 
     // Mock tls.connect to return socket immediately
     (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockSocket);
-
-    (split2 as unknown as typeof mockSplit2).mockReturnValue(mockStream);
 
     mockOptions = {
       to: 'test$example.com',

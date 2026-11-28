@@ -19,6 +19,7 @@ import type { Signer } from './signer-interface.js';
 import type { Decrypter } from './decrypter-interface.js';
 import type { BTPBoundViewResult } from '@core/server/schemas/boundViewChecks.js';
 import type { BTPAgreementStatement } from '@core/trust/types.js';
+import type { BTPAttachmentLimits } from '@core/server/schemas/attachmentLimits.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -65,6 +66,12 @@ export type BTPCryptoOptions = {
    * receiver's server speaks 1.1 (the default), or refuse with its version (`false`).
    */
   versionFallback?: boolean;
+  /**
+   * Since 1.2: how many attachments this provider sends in a document it encrypts, one number or
+   * one for each type, 0 to 1000; the standard 20 of each when not given. Above 20, a receiver
+   * that takes only the 20 every receiver takes refuses it.
+   */
+  maxAttachments?: BTPAttachmentLimits;
 };
 
 type WithGenericDocument<TArtifact extends BTPArtifact, T> = Omit<TArtifact, 'document'> & {

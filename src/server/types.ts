@@ -23,6 +23,7 @@ import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import type { BTPAttachmentLimits } from '@core/server/schemas/attachmentLimits.js';
 import type { z } from 'zod';
 import type {
   BtpAgreementDocSchema,
@@ -81,6 +82,31 @@ export interface BtpsServerOptions {
   maxArtifactAgeSeconds?: number;
   /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written. Default 32, minimum 1. */
   maxInFlightPerConnection?: number;
+  /**
+   * Since 1.2: how many artifacts the whole server may read and handle at once, over every
+   * connection. An artifact takes a place from its first byte until it is answered; one that finds
+   * none waits (see `maxArtifactsWaiting`) with nothing of it read, so it costs no memory. A whole
+   * number above 0. Default 2: two artifacts of the 64 MB every server takes need about 380 MB.
+   * Size it by memory: about three times the largest artifact for each place. Raise it for more
+   * small artifacts at once, as a place is held until its artifact is answered, whatever its size.
+   */
+  maxArtifactsInFlight?: number;
+  /**
+   * Since 1.2: how many artifacts may wait for a place (`maxArtifactsInFlight`), in order of
+   * arrival, held back by TCP. The next one past it is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE`
+   * (503) and its connection ends gently, for its sender to send again later. Default 100, minimum 0
+   * (none waits).
+   */
+  maxArtifactsWaiting?: number;
+  /**
+   * Since 1.2: how many attachments a document this server reads may carry: one number for every
+   * type, or one per type (`{ letter: 100, agreement: 100 }`), the rest at 20. Default 20 of each,
+   * minimum 20 (every receiver takes that many, so a sender within it is never refused), at most
+   * 1000. Past it, the artifact is answered `BTP_ERROR_VALIDATION`. Only an unencrypted document
+   * can be counted here: an encrypted one is counted where it is opened, with `decryptVerify`'s
+   * `maxAttachments`. To send fewer, a provider holds its own documents to it (`signEncrypt`).
+   */
+  maxAttachments?: BTPAttachmentLimits;
   /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
   maxConsecutiveInvalidLines?: number;
   /** Since 1.2: how long, in seconds, a key its identity rotated away from as planned still signs for this server. Default 86400 (1 day). A key rotated with immediate expiry gets none. */
@@ -391,7 +417,13 @@ export interface BTPTemplate {
 }
 
 /** Since 1.2: what a line-item column holds. */
-export type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
+export type BTPLineRole =
+  | 'description'
+  | 'quantity'
+  | 'unitPrice'
+  | 'discount'
+  | 'tax'
+  | 'lineTotal';
 
 /** Since 1.2: a letter's or an agreement's sign-off. Decoration: it proves no agreement. */
 export type BTPSignatory = NonNullable<BTPLetterDoc['signatory']>;

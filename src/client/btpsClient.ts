@@ -7,7 +7,7 @@
 
 import tls, { type TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
-import split2 from 'split2';
+import { BtpsLineFramer, lineFramerStream } from '@core/framing/index.js';
 import {
   getBtpAddressParts,
   getDnsIdentityParts,
@@ -262,7 +262,11 @@ export class BtpsClient {
    * connection closing late leaves a newer one alone.
    */
   protected attachListeners(socket: TLSSocket) {
-    socket.pipe(split2()).on('data', (line: string) => void this.onData(line, socket));
+    // Each answer is one line, cut in time that grows with the line (BtpsLineFramer). No limit: a
+    // server's answer may carry what an agent fetches.
+    socket
+      .pipe(lineFramerStream(BtpsLineFramer.utf8()))
+      .on('data', (line: string) => void this.onData(line, socket));
 
     // Nothing more can arrive on it: once the lines already received are read, what still waits on it fails.
     const over = (error: BTPErrorException) => {

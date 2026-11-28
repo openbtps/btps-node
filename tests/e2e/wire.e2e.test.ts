@@ -152,7 +152,8 @@ describe('journey: the connection', () => {
   });
 
   it('refuses an artifact larger than the server limit, and still delivers the answer', async () => {
-    const huge = `{"version":"${BTP_PROTOCOL_VERSION}","pad":"${'a'.repeat(6 * 1024 * 1024)}"}`;
+    // Past the 64 MB every server takes, its default.
+    const huge = `{"version":"${BTP_PROTOCOL_VERSION}","pad":"${'a'.repeat(65 * 1024 * 1024)}"}`;
 
     const answer = await sendRaw(host, huge);
 

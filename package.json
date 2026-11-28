@@ -105,8 +105,8 @@
     "@fontsource/tinos": "^5.3.0",
     "@resvg/resvg-wasm": "2.6.2",
     "@types/lodash": "^4",
+    "@types/node": "^24",
     "@types/proper-lockfile": "^4",
-    "@types/split2": "^4",
     "@types/strip-comments": "^2",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
@@ -146,7 +146,6 @@
     "lodash": "^4.17.21",
     "pkijs": "^4.0.1",
     "proper-lockfile": "^4.1.2",
-    "split2": "^4.2.0",
     "stream-json": "3.9.0",
     "zod": "^3.25.67"
   }

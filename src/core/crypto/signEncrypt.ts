@@ -105,7 +105,9 @@ export const signEncrypt = async <T = unknown>(
   if (to && !isEmpty(options?.encryption)) {
     // Once encrypted, no server can read the document, so it is checked here (documentChecks.ts:
     // the same check a platform runs on one it encrypts a piece at a time).
-    const problem = checkDocumentToSend(document, restPayload);
+    const problem = checkDocumentToSend(document, restPayload, {
+      maxAttachments: options?.maxAttachments,
+    });
     if (problem) return genEncryptError(problem);
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));

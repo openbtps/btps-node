@@ -3454,8 +3454,8 @@ export default function () {
           const rawWireLine = (expiredSocket.write as Mock).mock.calls[0][0] as string;
 
           // The 1.0.0 client never calls getSocket()/tls.connect() here -
-          // onData is reached directly, exactly as it would be once split2
-          // has framed a line off the real socket.
+          // onData is reached directly, exactly as it would be once the line
+          // framer has framed a line off the real socket.
           const client = new BtpsClient({ to: 'sender$domain.com' });
 
           const resolve = vi.fn();
@@ -3813,9 +3813,9 @@ export default function () {
       });
 
     it('refuses an artifact over its limit with the limit in the message, then ends gently', async () => {
-      const { input, socket } = connect(makeServer(2048));
+      const { input, socket } = connect(makeServer(65537));
 
-      input.write(Buffer.alloc(2048 * 1024 + 1, 'a'));
+      input.write(Buffer.alloc(65537 * 1024 + 1, 'a'));
       await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
 
       expect(socket.destroy).not.toHaveBeenCalled();
@@ -3823,19 +3823,19 @@ export default function () {
       const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
       expect(written.type).toBe('btps_error');
       expect(written.status.ok).toBe(false);
-      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 2048 KB`);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 65537 KB`);
     });
 
-    it('starts with a warning and the 1024 KB minimum when set lower', async () => {
+    it('starts with a warning and the 65536 KB every server takes when set lower', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const { input, socket } = connect(makeServer(100));
+      const { input, socket } = connect(makeServer(1024));
 
-      input.write(Buffer.alloc(1024 * 1024 + 1, 'a'));
+      input.write(Buffer.alloc(65536 * 1024 + 1, 'a'));
       await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
 
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 1024 KB minimum'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 65536 KB minimum'));
       const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
-      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 65536 KB`);
     });
 
     it('delivers the refusal over a real connection to a sender that is still sending', async () => {
@@ -3843,7 +3843,7 @@ export default function () {
         serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
         trustStore: new DummyTrustStore(),
         tlsOptions: { key: 'test-key', cert: 'test-cert' },
-        maxArtifactSizeKb: 1024,
+        maxArtifactSizeKb: 65536,
         connectionTimeoutMs: 2000,
       });
       // TCP, not TLS: losing an answer to a reset happens at the TCP level.
@@ -3873,7 +3873,7 @@ export default function () {
           const chunk = Buffer.alloc(64 * 1024, 'a');
           let sent = 0;
           const pump = () => {
-            while (sent < 4 * 1024 * 1024) {
+            while (sent < 68 * 1024 * 1024) {
               sent += chunk.length;
               if (!client.write(chunk)) {
                 client.once('drain', pump);
@@ -3887,7 +3887,7 @@ export default function () {
 
         const written: BTPServerResponse = JSON.parse(answer);
         expect(written.type).toBe('btps_error');
-        expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+        expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 65536 KB`);
       } finally {
         tcp.close();
       }

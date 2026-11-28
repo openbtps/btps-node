@@ -12,6 +12,7 @@ import { DOCUMENT_TYPES } from '../constants/permissions.js';
 import {
   BtpDocumentSchema,
   BtpInvoiceDocSchema,
+  BtpInvoiceDocV1_1Schema,
   BtpLetterDocSchema,
   BtpLifecycleEventSchema,
   BtpPayslipDocSchema,
@@ -175,6 +176,18 @@ const cases: Case[] = [
     build: (n) => ({ ...invoice, id: text(n) }),
   },
   {
+    name: 'line item text cell (1.2.0)',
+    schema: BtpInvoiceDocSchema,
+    limit: BTPS_FIELD_LIMITS.lineItems.cell,
+    build: (n) => ({ ...invoice, lineItems: { columns: ['Item'], rows: [{ Item: text(n) }] } }),
+  },
+  {
+    name: 'line item column name (1.2.0)',
+    schema: BtpInvoiceDocSchema,
+    limit: BTPS_FIELD_LIMITS.lineItems.cell,
+    build: (n) => ({ ...invoice, lineItems: { columns: [text(n)], rows: [] } }),
+  },
+  {
     name: 'reference id',
     schema: BtpInvoiceDocSchema,
     limit: documentId,
@@ -229,9 +242,9 @@ const cases: Case[] = [
     build: (n) => ({ ...letter, body: { format: 'markdown', content: text(n) } }),
   },
   {
-    name: 'letter attachments (count)',
+    name: 'letter attachments (count, to the ceiling)',
     schema: BtpLetterDocSchema,
-    limit: letterLimits.attachments,
+    limit: BTPS_FIELD_LIMITS.documentAttachments.ceiling,
     build: (n) => ({ ...letter, attachments: Array.from({ length: n }, () => attachment) }),
   },
   {
@@ -246,6 +259,14 @@ describe('BTPS_FIELD_LIMITS', () => {
   it.each(cases)('$name accepts $limit and refuses one more', (c) => {
     expect(c.schema.safeParse(c.build(c.limit)).success).toBe(true);
     expect(c.schema.safeParse(c.build(c.limit + 1)).success).toBe(false);
+  });
+
+  it('leaves a 1.1.0 invoice’s line item cells as 1.1 reads them', () => {
+    const long = {
+      ...invoice,
+      lineItems: { columns: ['Item'], rows: [{ Item: 'a'.repeat(5000) }] },
+    };
+    expect(BtpInvoiceDocV1_1Schema.safeParse(long).success).toBe(true);
   });
 });
 

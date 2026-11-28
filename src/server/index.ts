@@ -8,6 +8,11 @@
 export * from '@core/server/types.js';
 export * from '@core/server/constants/index.js';
 export { BtpsServer } from './btpsServer.js';
+// Since 1.2: how many attachments a provider takes, by type (`maxAttachments`).
+export {
+  type BTPAttachmentLimits,
+  type BTPAttachingDocumentType,
+} from '@core/server/schemas/attachmentLimits.js';
 // A platform checks an encrypted event's chain with these once it has opened it.
 export {
   lifecycleEventChainProblem,
