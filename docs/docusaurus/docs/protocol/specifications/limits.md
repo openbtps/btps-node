@@ -14,7 +14,10 @@ There are two kinds:
 - **Protocol limits** are the same at every provider. A sender cannot know
   which provider a receiver uses, so a document one provider accepts must be
   accepted by all of them. A provider cannot raise them. It may be stricter
-  in its own middleware (see [Being stricter](#being-stricter)).
+  in its own middleware (see [Being stricter](#being-stricter)). Since 1.2,
+  one is the exception: how many attachments a `1.2.0` document carries. The
+  protocol guarantees 20, and a provider may take more but never refuse 20
+  or fewer (see [Attachments](#attachments)).
 - **Receiver settings** are chosen by each server, within a minimum the
   protocol sets, the way an email server announces its own message size.
 
@@ -176,17 +179,20 @@ document type. Each limit is described on its
 Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
 its signatory's and its BoundView's included, and these:
 
-| Field                                                        |                               Limit |
-| ------------------------------------------------------------ | ----------------------------------: |
-| `acceptance.signers`                                         |                             1 to 20 |
-| `acceptance.terms`                                           | 10, one for each attachment at most |
-| a statement's `viewedFrom.userAgent`, `signedFrom.userAgent` |                                 256 |
-| a statement's `viewedFrom.device.id`, `signedFrom.device.id` |                                 128 |
-| each other field of `viewedFrom.device`, `signedFrom.device` |                                 100 |
-| `salt`                                                       |                    exactly 32 bytes |
-| a cosignature's encrypted statement, padded to a multiple of |                    4,096 characters |
-| a cosignature's `ciphertext` (base64)                        |                  262,144 characters |
-| a cosignature's `recipients`                                 |                             1 to 21 |
+| Field                                                        |                           Limit |
+| ------------------------------------------------------------ | ------------------------------: |
+| `acceptance.signers`                                         |                         1 to 20 |
+| `acceptance.terms`                                           | one for each attachment at most |
+| a statement's `viewedFrom.userAgent`, `signedFrom.userAgent` |                             256 |
+| a statement's `viewedFrom.device.id`, `signedFrom.device.id` |                             128 |
+| each other field of `viewedFrom.device`, `signedFrom.device` |                             100 |
+| `salt`                                                       |                exactly 32 bytes |
+| a cosignature's encrypted statement, padded to a multiple of |                4,096 characters |
+| a cosignature's `ciphertext` (base64)                        |              262,144 characters |
+| a cosignature's `recipients`                                 |                         1 to 21 |
+
+An agreement's terms are its attachments, so they are held to the same number:
+20, or more where its receiver takes more ([Attachments](#attachments)).
 
 Since 1.2, a cosignature's statement is padded with `0`s to a multiple of 4,096 characters before it is encrypted, so its length does not tell an acceptance from a decline. A receiver refuses a statement whose padding is not exactly that. The ciphertext limit leaves room for a statement with a drawn signature, padded: a cosignature carries a statement, never a document. A cosignature's `recipients` include its signer and the agreement's originator, each identity once (compared without case), so there are at most 21 (the 20 signers and an originator that does not sign). See [Cosignatures](./transporter-artifact.md#cosignatures).
 
@@ -197,22 +203,27 @@ counts, not lengths. They are far above any real document, and are there so
 that no message, however crafted, costs a receiver more than a bounded
 amount of memory to check. Since 1.1.3.
 
-| Field                                                      |    Limit |
-| ---------------------------------------------------------- | -------: |
-| `lineItems.rows` (invoice, receipt)                        |   10,000 |
-| `lineItems.columns`                                        |       50 |
-| cells in one `lineItems` row                               |       50 |
-| `attachments` (invoice, receipt, payslip)                  |       10 |
-| `references` (invoice, receipt, payslip)                   |       20 |
-| `attachments` (letter)                                     |       10 |
-| `references` (letter)                                      |       20 |
-| payslip `earnings`, `deductions`, `contributions`, `leave` | 200 each |
-| query filter `in`, `notIn`                                 |    1,000 |
-| agent `ids` (to delete, cancel or mark seen)               |    1,000 |
-| query `results` (one page)                                 |    1,000 |
-| a trust record's `keyHistory`                              |    1,000 |
-| `agentInfo` list values                                    |       50 |
-| keys of any record                                         |      100 |
+| Field                                                      |                       Limit |
+| ---------------------------------------------------------- | --------------------------: |
+| `lineItems.rows` (invoice, receipt)                        |                      10,000 |
+| `lineItems.columns`                                        |                          50 |
+| cells in one `lineItems` row                               |                          50 |
+| `attachments` (invoice, receipt, payslip), `1.1.0`         |                          10 |
+| `references` (invoice, receipt, payslip)                   |                          20 |
+| `attachments` (letter), `1.1.0`                            |                          10 |
+| `references` (letter)                                      |                          20 |
+| `attachments` (every type), `1.2.0`, since 1.2             | the receiver's: 20 to 1,000 |
+| payslip `earnings`, `deductions`, `contributions`, `leave` |                    200 each |
+| query filter `in`, `notIn`                                 |                       1,000 |
+| agent `ids` (to delete, cancel or mark seen)               |                       1,000 |
+| query `results` (one page)                                 |                       1,000 |
+| a trust record's `keyHistory`                              |                       1,000 |
+| `agentInfo` list values                                    |                          50 |
+| keys of any record                                         |                         100 |
+
+Since 1.2, a `1.2.0` document's attachments are the one count a provider sets
+itself: every receiver takes 20 of each type, and may take more
+([Attachments](#attachments)).
 
 Since 1.2, the lists that trust permissions, details refresh and agreements add. Each name is in a list at most once, so a names list is at most as long as the names it may hold:
 
@@ -243,6 +254,78 @@ in it is read. A list of more than 100 entries is checked one entry at a
 time, and the check stops at the first invalid entry, naming where it is, for
 example `lineItems.rows[4812].c3`. A shorter list is checked whole, and every
 invalid entry is reported.
+
+### Attachments
+
+Since 1.2, in a `1.2.0` document of every type (invoice, receipt, payslip,
+letter and agreement), how many attachments it carries is the one field limit
+a provider sets itself. Every other limit on this page is fixed by the
+protocol.
+
+- **Every receiver takes at least 20 of each type.** This is the protocol's
+  guarantee: a sender that sends 20 or fewer is never refused for its count,
+  wherever it sends. A receiver's own middleware must not refuse 20 or fewer
+  either ([Being stricter](#being-stricter)).
+- **A limit is a maximum, never a minimum.** A document with 0, 2 or 19
+  attachments is always taken.
+- **A receiver may take more,** up to 1,000, by type. It can never take fewer
+  than 20: a value below 20 is warned about and 20 is used.
+- **A sender may hold its own documents to fewer,** from 0 to 1,000, for
+  example a platform that sends one file on an invoice.
+- **Sending more than 20 is the sender's choice and risk.** A receiver that
+  takes only the guaranteed 20 refuses it, and the sender must send it again
+  with fewer. That is the provider's responsibility.
+- **An agreement's terms are its attachments** (`acceptance.terms`), so they
+  are held to the same number.
+
+A `1.1.0` document is unchanged: an invoice, a receipt, a payslip or a letter
+carries at most 10, fixed by the protocol, as in 1.1. A 1.1 receiver takes at
+most 10, by its own rule. The wire is unchanged.
+
+Where each side sets its number, `maxAttachments`:
+
+| Side                          | Set on                                                                        | Range       | Default    |
+| ----------------------------- | ----------------------------------------------------------------------------- | ----------- | ---------- |
+| receive, unencrypted document | `BtpsServerOptions.maxAttachments`                                            | 20 to 1,000 | 20 of each |
+| receive, encrypted document   | `decryptVerify`'s `options.maxAttachments`, or `checkDecryptedDocument`'s     | 20 to 1,000 | 20 of each |
+| send                          | `signEncrypt`'s `BTPCryptoOptions.maxAttachments`, or `checkDocumentToSend`'s | 0 to 1,000  | 20 of each |
+
+A server counts the attachments of an unencrypted document when it arrives.
+It cannot count an encrypted one: that is counted where it is opened. Past
+the limit, either answers `BTP_ERROR_VALIDATION` (400), with a message such as
+`a letter may carry at most 20 attachments here; it carries 21`. `signEncrypt`
+refuses to encrypt a document past the sender's own limit, with the same
+error.
+
+Each setting is one number for every type, or one for each type, the rest at
+20 (`BTPAttachmentLimits`). It takes whole numbers only: a value that is not
+whole is warned about and 20 is used, and one above 1,000 is warned about and
+1,000 is used.
+
+A platform that takes up to 100 attachments on a letter or an agreement, and
+sends one file on an invoice, a receipt or a payslip:
+
+```ts check
+import type { BTPAttachmentLimits } from '@btps/sdk/server';
+
+// What it takes: 100 on a letter or an agreement; the others stay at the guaranteed 20.
+// Give it to BtpsServer, and to decryptVerify, as maxAttachments.
+export const receiveAttachments: BTPAttachmentLimits = { letter: 100, agreement: 100 };
+
+// What it sends: one file on an invoice, a receipt or a payslip.
+// Give it to signEncrypt, in its options, as maxAttachments.
+export const sendAttachments: BTPAttachmentLimits = {
+  invoice: 1,
+  receipt: 1,
+  payslip: 1,
+  letter: 100,
+  agreement: 100,
+};
+```
+
+Sending 100 on a letter is this platform's own choice: a receiver that takes
+only 20 refuses it. How large the files may be together is a separate limit,
+the [artifact size](#artifact-size) (see also [Large documents](#large-documents)).
 
 ### Encrypted documents
 
@@ -280,6 +363,7 @@ BTPS_FIELD_LIMITS.letter.content; // 100000
 BTPS_FIELD_LIMITS.lineItems.rows; // 10000
 BTPS_FIELD_LIMITS.agreement.statementPaddingBucket; // 4096, since 1.2
 BTPS_FIELD_LIMITS.agreement.cosignatureCiphertextChars; // 262144, since 1.2
+BTPS_FIELD_LIMITS.documentAttachments; // { standard: 20, ceiling: 1000 }, since 1.2
 ```
 
 ## Receiver settings
@@ -298,6 +382,7 @@ raised to the minimum, with a warning; the server still starts.
 | `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
 | `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
 | `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
+| `maxAttachments`             | 20 of each type | 20       | since 1.2: attachments in a `1.2.0` document, by type, at most 1,000 (see Attachments)           |
 
 ### Requests in flight
 
@@ -463,3 +548,11 @@ A provider may refuse more than the protocol does: shorter fields, a smaller
 artifact, fewer requests. It does this in its own
 [middleware](../../server/middlewares.md), answering with `res.sendError`. It cannot accept more than the protocol allows, since a
 document that only one provider accepts is not one every sender can rely on.
+The one exception, since 1.2, is how many attachments a `1.2.0` document
+carries: a receiver may take more than the guaranteed 20, and a sender that
+sends more takes the risk of a refusal ([Attachments](#attachments)).
+
+A provider may be stricter in this way about every field limit except the
+number of attachments. Every receiver takes at least 20 of each type, and
+must never refuse a `1.2.0` document for carrying 20 or fewer. A provider may
+still hold what its own users send to fewer.

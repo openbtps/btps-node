@@ -85,10 +85,13 @@ The `BtpsServer` class accepts the following options:
 | `maxConsecutiveInvalidLines` | `number`                | No       | Since 1.2: unreadable lines in a row before the connection is ended (default: 10)                                                                                     |
 | `retiredKeyGraceSeconds`     | `number`                | No       | Since 1.2: how long a key rotated away as planned still signs (default: 86400)                                                                                        |
 | `keyChainMaxCacheSeconds`    | `number`                | No       | Since 1.2: the longest a key chain is trusted from a cache (default: 300)                                                                                             |
+| `maxAttachments`             | `BTPAttachmentLimits`   | No       | Since 1.2: attachments a `1.2.0` document may carry here, one number or one for each type (default: 20 of each, minimum: 20, maximum: 1000)                          |
 
 Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 
 Receiving large documents, such as agreements carrying several PDFs: raise `maxArtifactSizeKb` deliberately, size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)), and set `maxArtifactsInFlight` so it reads no more at once than its memory holds ([Sizing a server for very large artifacts](../features/platformChecks.md#the-servers-own-limits)).
+
+Receiving documents with more than 20 attachments: every receiver takes 20 of each type, and `maxAttachments` takes more, up to 1000. The server counts an unencrypted document's attachments on arrival; an encrypted one is counted where it is opened, so give `decryptVerify` the same number ([Attachments](../protocol/specifications/limits.md#attachments)).
 
 **Example:**
 

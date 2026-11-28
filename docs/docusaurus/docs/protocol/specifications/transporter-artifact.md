@@ -582,6 +582,10 @@ attachment.sha256 = createHash('sha256').update(bytes).digest('hex');
 
 `size` and `sha256` let a receiving platform that stores the file apart from the document (for example in object storage) confirm later that it is still exactly the file that arrived, recognise the same file sent twice, and show the file's size before it is downloaded. They are not what protects the file in transit: the artifact's signature already covers the whole document, attachments included. The protocol does not check them; a platform may.
 
+**How many:**
+
+A `1.1.0` invoice, receipt, payslip or letter carries at most 10 attachments, as in 1.1. Since 1.2, in a `1.2.0` document of every type, every receiver takes 20 attachments, and may take more, up to 1,000. A sender that sends 20 or fewer is never refused for its count; one that sends more is refused by a receiver that takes only 20. See [Attachments](./limits.md#attachments).
+
 **Size:**
 
 Each receiving server sets the largest artifact it can accept: 5 MB unless it chooses otherwise (see [Server Requirements](./overview.md#server-requirements)). Attachments travel inside the artifact as base64, which is a third larger than the file itself, so a 5 MB artifact carries about 3.7 MB of files. When the files do not fit, send them in further documents that reference the first one (`follows`, see References) rather than in one large artifact.
@@ -742,7 +746,7 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
 - **body.format** is `text` or `markdown`, one per letter, never mixed.
 - **`text`** is shown exactly as written.
 - **`markdown`** is CommonMark with raw HTML off. A receiver renders it without inline images and follows only `https` links. There is no HTML body: an HTML body would need sanitising by every receiver, and a mistake in that is a vulnerability.
-- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`; since 1.2, `recipient`, `signatory` and `boundView` (its [BoundView](./boundview/overview.md)).
+- **Optional:** `issuer`, `attachments` (up to 10 under `1.1.0`; under `1.2.0`, the 20 every receiver takes, or more where it takes more: see [Attachments](./limits.md#attachments)), `references` (up to 20), `metadata`; since 1.2, `recipient`, `signatory` and `boundView` (its [BoundView](./boundview/overview.md)).
 - **signatory** (since 1.2, a letter and an agreement): the sender's sign-off, `{ "name": "Jo Bloggs", "title": "Director", "visualSignature": { "type": "drawn", "strokes": [[40, 200, 180, 90]] } }`. `name` is required, `title` and `visualSignature` optional; the name and title are plain text of at most 100 characters, and `visualSignature` is typed or drawn exactly as an agreement signer's is. It is the sender's own, signed with the letter.
 - A letter never carries `acceptance`.
 
@@ -797,7 +801,7 @@ Its `contentSha256`, as `agreementContentSha256` gives it, is `85aa77265b21d3073
 
 - **`acceptance.signers`**: who accepts it, 1 to 20 BTPS addresses, each once, letters compared without case. The originator may be one of them, for example a bank that countersigns. It is signed content, so the list cannot change after sending.
 - **`acceptance.signingOrder`**: `sequential`, where the signers answer in list order, or `any`.
-- **`acceptance.terms`**: the SHA-256 of each attachment that is a term of the agreement, each once, and each the `sha256` of one of its attachments. It may be empty: an acceptance always covers the whole signed content, and `terms` only names which attached documents are the contract.
+- **`acceptance.terms`**: the SHA-256 of each attachment that is a term of the agreement, each once, and each the `sha256` of one of its attachments. It may be empty: an acceptance always covers the whole signed content, and `terms` only names which attached documents are the contract. Since the terms are attachments, they are held to the same number ([Attachments](./limits.md#attachments)).
 - **`acceptance.by`** (optional): the deadline. A signer's answer is signed no later than it.
 - **`salt`** (since 1.2, required): 32 random bytes, base64: it must decode to exactly 32 bytes. It is part of the content, so of `contentSha256`, which every [cosignature](#cosignatures) carries readable on its envelope. Without it, anyone who holds a standard agreement's text could hash it and confirm a guess at what was signed. Like the rest of the content, it travels encrypted.
 - **One source of truth:** an agreement always carries `acceptance`, and a letter never does, so the type and the block can never disagree. There is no `kind` field.

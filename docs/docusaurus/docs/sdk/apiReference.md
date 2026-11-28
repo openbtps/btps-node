@@ -442,7 +442,7 @@ Since 1.2, a `TRUST_REQ` payload carrying `permissions` is composed for its rece
   - `document` (`T`, required): The document payload.
   - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names: in DNS first, then, when DNS has none, from the receiver's host, in an answer its domain's operator signed.
   - `[key: string]` (`unknown`): Additional metadata fields.
-- `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
+- `options` (`BTPCryptoOptions`, optional): Signature and encryption options. Since 1.2, `maxAttachments` ([BTPAttachmentLimits](./typesAndInterfaces.md#btpattachmentlimits-and-btpattachingdocumenttype)): how many attachments a document this sender encrypts may carry, one number or one for each type, 0 to 1000; 20 of each when not given. A document past it is not encrypted: `BTP_ERROR_VALIDATION`. Sending more than 20 risks a refusal by a receiver that takes only the 20 every receiver takes ([Attachments](../protocol/specifications/limits.md#attachments)).
 - `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions, keyResolver }`. `btpMtsOptions` is the TLS options for the connection to the receiver's host, used only when DNS has no key. Since 1.2, `keyResolver` ([BtpsKeyResolver](./typesAndInterfaces.md#btpskeyresolver)) is asked for the receiver's key (`encrypt`) in place of DNS, and the host is still asked when it has none.
 
 **Returns:**
@@ -482,7 +482,8 @@ decryptVerify<T>(
   encryptedPayload: VerifyEncryptedPayload<T>,
   receiverKey?: BTPDecryptionKey,
   contentKey?: string,
-  cosignatureKeys?: (string | null)[]
+  cosignatureKeys?: (string | null)[],
+  options?: Pick<BTPDocumentCheckOptions, 'maxAttachments'> // since 1.2
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -502,6 +503,7 @@ Since 1.2, when the artifact carries `cosignatures`, it holds each to the docume
 - `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
 - `contentKey` (`string`, optional, since 1.2): the document's content key wrapped to `receiverKey`, in place of the envelope's `encryptedKey`: a device's `agentKey.key`. The signature is still checked over the artifact as sent. `BtpsAgent.openResult` passes it.
 - `cosignatureKeys` (`(string | null)[]`, optional, since 1.2): each cosignature's content key wrapped to `receiverKey`, by position, in place of the recipient's own `wrappedKey`: a device's `agentKey.cosignatureKeys`. There must be one for each cosignature, and a cosignature addressed to the receiver with `null` is refused (`BTP_ERROR_SIG_VERIFICATION`). `BtpsAgent.openResult` passes it.
+- `options` (`{ maxAttachments?: BTPAttachmentLimits }`, optional, since 1.2, the 6th argument): `maxAttachments` is how many attachments this provider takes in a document it opens, one number or one for each type, 20 to 1000 ([BTPAttachmentLimits](./typesAndInterfaces.md#btpattachmentlimits-and-btpattachingdocumenttype)). Without it, 20 of each. An opened document past it returns `BTP_ERROR_VALIDATION`, for example `a letter may carry at most 20 attachments here; it carries 21`. Give it the same number as your server's `maxAttachments`: the server cannot count an encrypted document's attachments, so they are counted here ([Attachments](../protocol/specifications/limits.md#attachments)).
 
 **Returns:**
 
@@ -548,13 +550,15 @@ A document with its files held apart, each attachment's `content` empty (`''`) w
 
 With `{ boundView: 'whereDrawn' }`, the document's BoundView is not checked here. Use it only when the BoundView is drawn with `@btps/boundview`'s `renderBoundView`, which checks it before it draws and draws none that fails. Otherwise leave the option out, and the BoundView is checked here.
 
+With `{ maxAttachments }` ([BTPAttachmentLimits](./typesAndInterfaces.md#btpattachmentlimits-and-btpattachingdocumenttype)), a `BTPS_DOC` document is held to that many attachments: what this provider takes, 20 to 1000, for `checkDecryptedDocument`, and what it sends, 0 to 1000, for `checkDocumentToSend`. Give each the number you give `decryptVerify` and `signEncrypt`. Left out, 20 of each. Past it: `BTP_ERROR_VALIDATION` ([Attachments](../protocol/specifications/limits.md#attachments)).
+
 See [Opening a large artifact, start to finish](../protocol/security/decryption.md#opening-a-large-artifact-start-to-finish).
 
 **Arguments:**
 
 - `document` (`unknown`, required): The opened document, or the document to send. Its files may be held apart, as above.
 - `envelope` (`BTPDocumentEnvelope`, required): The artifact without its `document`: at least its `type`, `version` and, when it has one, `documentType`. For `checkDecryptedDocument`, the whole envelope as it arrived, since some rules compare the document with other fields (`id`, `from`, `to`, `given`, `granted`, `details`). See [BTPDocumentEnvelope](./typesAndInterfaces.md#btpdocumentcheckoptions-and-btpdocumentenvelope).
-- `options` (`BTPDocumentCheckOptions`, optional): `{ boundView: 'whereDrawn' }`, as above.
+- `options` (`BTPDocumentCheckOptions`, optional): `{ boundView: 'whereDrawn' }` and, since 1.2, `{ maxAttachments }`, as above.
 
 **Returns:**
 
@@ -1453,6 +1457,8 @@ Each is a `readonly` array (or record) of the names a server and agent take.
 | `CURRENCY_CODES`                   | ISO 4217 codes                              | Every currency code a money field takes (`CurrencyCode`)                                                                                                                    |
 | `CURRENCY_DECIMALS`                | `{ JPY: 0, KWD: 3, ... }`                   | The decimal places of each currency whose minor unit is not two hundredths; every other code has 2. Fixed here so every receiver writes an amount the same way              |
 | `BTPS_FIELD_LIMITS`                | `{ trustRequest: { name: 200, ... }, ... }` | The longest each field may be: a text in characters, a list in entries, a record in keys. Every provider takes the same; see [Limits](../protocol/specifications/limits.md) |
+
+Since 1.2, one value of `BTPS_FIELD_LIMITS` is not the same at every provider: `documentAttachments`, `{ standard: 20, ceiling: 1000 }`, how many attachments a `1.2.0` document carries. Every receiver takes the standard, and a provider may take more, up to the ceiling, with `maxAttachments` ([Attachments](../protocol/specifications/limits.md#attachments)).
 
 ---
 

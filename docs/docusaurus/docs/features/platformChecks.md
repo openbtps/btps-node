@@ -113,6 +113,7 @@ return res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { ret
 | `connectionTimeoutMs`        | 30,000             | how long a connection with nothing in flight stays open                                                             |
 | `retiredKeyGraceSeconds`     | 86,400 (since 1.2) | how long a key its identity rotated away from as planned still signs ([Key rotation](./keyRotation.md))             |
 | `keyChainMaxCacheSeconds`    | 300 (since 1.2)    | how long a key chain is trusted from a cache: the longest a revoked key can still be taken                          |
+| `maxAttachments`             | 20 (since 1.2)     | attachments in an unencrypted `1.2.0` document, by type, 20 to 1,000; an encrypted one is counted when opened       |
 
 A line is checked against the schema of the kind of artifact it is taken for, and nothing else, and every list is refused cheaply when it is too long, before its signature is checked. See [Limits](../protocol/specifications/limits.md).
 

@@ -41,6 +41,7 @@ interface BtpsServerOptions {
   maxConsecutiveInvalidLines?: number; // since 1.2
   retiredKeyGraceSeconds?: number; // since 1.2
   keyChainMaxCacheSeconds?: number; // since 1.2
+  maxAttachments?: BTPAttachmentLimits; // since 1.2
 }
 ```
 
@@ -65,6 +66,7 @@ interface BtpsServerOptions {
 - `maxConsecutiveInvalidLines`: Optional, since 1.2. How many lines in a row one connection may send that the server cannot read; it answers the last and ends the connection (default: 10, minimum: 1)
 - `retiredKeyGraceSeconds`: Optional, since 1.2. How long a key its identity rotated away from as planned still signs for this server (default: 86400, one day). A key rotated with immediate expiry gets none: it is refused with `BTP_ERROR_KEY_REVOKED`, and one past its grace with `BTP_ERROR_KEY_RETIRED`. See [Key rotation](../features/keyRotation.md)
 - `keyChainMaxCacheSeconds`: Optional, since 1.2. The longest the server trusts an identity's key chain from a cache, and so the longest a revoked key can still be taken (default: 300). A `keyResolver` with `resolveKeyChain` keeps its own cache, and must honour it
+- `maxAttachments`: Optional, since 1.2. How many attachments a `1.2.0` document may carry here: one number for every type, or one for each type, the rest at 20 ([BTPAttachmentLimits](#btpattachmentlimits-and-btpattachingdocumenttype)). Default 20 of each, minimum 20, maximum 1000. Every receiver takes 20, so a sender that sends no more is never refused for its count. A value below 20 or not a whole number logs a warning and 20 is used, and one above 1000 logs a warning and 1000 is used. Past it, the artifact is answered `BTP_ERROR_VALIDATION` (400), for example `a letter may carry at most 20 attachments here; it carries 21`. Only an unencrypted document is counted here: an encrypted one is counted where it is opened, with `decryptVerify`'s `maxAttachments`. See [Attachments](../protocol/specifications/limits.md#attachments)
 
 The provider's own limit on details requests is middleware, since 1.2: `detailsRequestLimit` (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
 
@@ -1353,6 +1355,7 @@ Since 1.2. What `checkDecryptedDocument` and `checkDocumentToSend` take beside t
 ```ts
 type BTPDocumentCheckOptions = {
   boundView?: 'whereDrawn';
+  maxAttachments?: BTPAttachmentLimits; // since 1.2
 };
 
 type BTPDocumentEnvelope = Record<string, unknown> & {
@@ -1362,13 +1365,32 @@ type BTPDocumentEnvelope = Record<string, unknown> & {
 };
 ```
 
-| Field                                | Type           | Required | What it says                                                                                                                                                                                                                |
-| ------------------------------------ | -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTPDocumentCheckOptions.boundView`  | `'whereDrawn'` | No       | Do not check the document's BoundView here. Only when the BoundView is drawn with `@btps/boundview`'s `renderBoundView`, which checks it before it draws and draws none that fails. Left out, the BoundView is checked here |
-| `BTPDocumentEnvelope.type`           | `string`       | No       | The artifact's type, such as `'BTPS_DOC'`: which schema checks the document                                                                                                                                                 |
-| `BTPDocumentEnvelope.version`        | `string`       | No       | The artifact's version: under which version the schema checks the document                                                                                                                                                  |
-| `BTPDocumentEnvelope.documentType`   | `string`       | No       | The type the envelope names. The document must be that type (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`)                                                                                                                            |
-| `BTPDocumentEnvelope` (other fields) | `unknown`      | No       | The rest of the artifact as it arrived, which some rules compare the document with: `id`, `from` and `to` for an event, and `given`, `granted` and `details` for a trust request, a trust answer and a details response     |
+| Field                                    | Type                  | Required | What it says                                                                                                                                                                                                                          |
+| ---------------------------------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTPDocumentCheckOptions.boundView`      | `'whereDrawn'`        | No       | Do not check the document's BoundView here. Only when the BoundView is drawn with `@btps/boundview`'s `renderBoundView`, which checks it before it draws and draws none that fails. Left out, the BoundView is checked here           |
+| `BTPDocumentCheckOptions.maxAttachments` | `BTPAttachmentLimits` | No       | Since 1.2. How many attachments a `1.2.0` document may carry: what this provider takes (`checkDecryptedDocument`, 20 to 1000) or sends (`checkDocumentToSend`, 0 to 1000). 20 of each when not given. Past it: `BTP_ERROR_VALIDATION` |
+| `BTPDocumentEnvelope.type`               | `string`              | No       | The artifact's type, such as `'BTPS_DOC'`: which schema checks the document                                                                                                                                                           |
+| `BTPDocumentEnvelope.version`            | `string`              | No       | The artifact's version: under which version the schema checks the document                                                                                                                                                            |
+| `BTPDocumentEnvelope.documentType`       | `string`              | No       | The type the envelope names. The document must be that type (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`)                                                                                                                                      |
+| `BTPDocumentEnvelope` (other fields)     | `unknown`             | No       | The rest of the artifact as it arrived, which some rules compare the document with: `id`, `from` and `to` for an event, and `given`, `granted` and `details` for a trust request, a trust answer and a details response               |
+
+### BTPAttachmentLimits and BTPAttachingDocumentType
+
+Since 1.2. How many attachments a provider takes or sends in a `1.2.0` document: one number for every type, or one for each type, the rest at 20. Exported from `@btps/sdk/server` and `@btps/sdk/crypto`. See [Attachments](../protocol/specifications/limits.md#attachments).
+
+```ts
+type BTPAttachingDocumentType = 'invoice' | 'receipt' | 'payslip' | 'letter' | 'agreement';
+
+type BTPAttachmentLimits = number | Partial<Record<BTPAttachingDocumentType, number>>;
+```
+
+| Where it is given                                                          | Side    | Range      | Default    |
+| -------------------------------------------------------------------------- | ------- | ---------- | ---------- |
+| `BtpsServerOptions.maxAttachments`                                         | receive | 20 to 1000 | 20 of each |
+| `decryptVerify`'s `options.maxAttachments`, `checkDecryptedDocument`'s     | receive | 20 to 1000 | 20 of each |
+| `BTPCryptoOptions.maxAttachments` (`signEncrypt`), `checkDocumentToSend`'s | send    | 0 to 1000  | 20 of each |
+
+Whole numbers only. A value that is not whole logs a warning and 20 is used; one above 1000 logs a warning and 1000 is used. To receive, one below 20 logs a warning and 20 is used: every receiver takes at least 20. An agreement's `acceptance.terms` are its attachments, so they are held to the same number.
 
 ### ParsedIdentity
 
@@ -2489,8 +2511,11 @@ interface BTPCryptoOptions {
     mode: EncryptionMode;
   };
   versionFallback?: boolean; // since 1.2: false refuses a trust request with permissions to a 1.1 receiver
+  maxAttachments?: BTPAttachmentLimits; // since 1.2: how many attachments a document this sender encrypts may carry
 }
 ```
+
+Since 1.2, `maxAttachments` is the sender's own limit: one number for every type, or one for each type, 0 to 1000; 20 of each when not given. `signEncrypt` refuses to encrypt a document past it, with `BTP_ERROR_VALIDATION`. Sending more than 20 is the sender's choice: a receiver that takes only the 20 every receiver takes refuses it. See [BTPAttachmentLimits](#btpattachmentlimits-and-btpattachingdocumenttype).
 
 ### BTPCryptoResponse
 
