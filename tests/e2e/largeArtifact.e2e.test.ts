@@ -95,7 +95,8 @@ describe('a large artifact', () => {
       const arrived = clientHost.inbox.find((a) => a.id === sent.id)!;
       const { payload, error: opened } = await open<BTPTransporterArtifact>(client, arrived);
       expect(opened).toBeUndefined();
-      expect((payload?.document as typeof document).attachments.map((one) => one.sha256)).toEqual(
+      const received = payload?.document as unknown as { attachments: { sha256: string }[] };
+      expect(received.attachments.map((one) => one.sha256)).toEqual(
         attachments.map((one) => one.sha256),
       );
     },
