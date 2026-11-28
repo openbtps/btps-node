@@ -77,6 +77,8 @@ The `BtpsServer` class accepts the following options:
 | `maxArtifactSizeKb`          | `number`                | No       | The largest artifact accepted, in KB (default: 5120, minimum: 1024). Raising it for very large artifacts: [size the server for it](../features/platformChecks.md#the-servers-own-limits) |
 | `maxArtifactAgeSeconds`      | `number`                | No       | How far `issuedAt` may be from the server's clock (default: 300, minimum: 60)                                                                                         |
 | `maxInFlightPerConnection`   | `number`                | No       | Requests one connection may have handled at once (default: 32, minimum: 1)                                                                                            |
+| `maxArtifactsInFlight`       | `number`                | No       | Since 1.2: artifacts the whole server may read and handle at once, over every connection (no default: no limit)                                                       |
+| `maxArtifactsWaiting`        | `number`                | No       | Since 1.2: with `maxArtifactsInFlight`, artifacts that may wait for a place; the next is refused with 503 (default: 100, minimum: 0)                                  |
 | `signAnswers`                | `boolean`               | No       | Since 1.2: sign every answer, for devices that require it (`requireSignedBy`). Needs `serverIdentity.selector`                                                        |
 | `keyResolver`                | `BtpsKeyResolver`       | No       | Since 1.2: finds every key the server checks, in place of its own lookup (DNS, then the identity's host), so you can cache them                                       |
 | `entityTypeOf`               | `function`              | No       | Since 1.2: whether one of your addresses is a `person` or an `organisation`                                                                                           |
@@ -86,7 +88,7 @@ The `BtpsServer` class accepts the following options:
 
 Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 
-Receiving large documents, such as agreements carrying several PDFs: raise `maxArtifactSizeKb` deliberately, and size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)).
+Receiving large documents, such as agreements carrying several PDFs: raise `maxArtifactSizeKb` deliberately, size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)), and set `maxArtifactsInFlight` so it reads no more at once than its memory holds ([Sizing a server for very large artifacts](../features/platformChecks.md#the-servers-own-limits)).
 
 **Example:**
 

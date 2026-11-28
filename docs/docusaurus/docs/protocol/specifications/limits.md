@@ -293,6 +293,8 @@ raised to the minimum, with a warning; the server still starts.
 | `maxArtifactAgeSeconds`      | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
 | `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
 | `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
+| `maxArtifactsInFlight`       | none (no limit) | 1        | since 1.2: how many artifacts the whole server may read and handle at once                       |
+| `maxArtifactsWaiting`        | 100             | 0        | since 1.2: with `maxArtifactsInFlight`, how many artifacts may wait for a place                  |
 | `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
 | `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
 | `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
@@ -314,6 +316,45 @@ the last one answered and is ended, with `status.closing`; a line it can read
 starts the count again. A connection that has gone is sent nothing, and no
 answer is signed for it.
 
+### Artifacts across the server
+
+Since 1.2, a server can also limit how many artifacts it reads and handles at
+once over every connection, with `maxArtifactsInFlight`. An artifact takes a
+place before its first byte is read, and gives it up once its answer is
+written. Without `maxArtifactsInFlight` there is no server-wide limit, as
+before.
+
+An artifact that finds no place waits, in order of arrival, up to
+`maxArtifactsWaiting` (100 by default). While it waits, the server reads
+nothing from its connection, so the sender is held by TCP and the waiting
+artifact costs the server no memory. `connectionTimeoutMs` does not close a
+connection that is waiting for a place: the wait is the server's, not the
+sender's. A connection that closes while waiting gives up its turn, and places
+held for lines read but not yet handled are given back when it closes.
+
+The next artifact past the queue is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE`
+(503), and its connection ends gently: the server reads and drops what the
+sender still sends, so the answer reaches it. Once a place frees, the first
+waiting artifact goes in, and once the queue is below its limit, the next
+newcomer waits instead of being refused. With `maxArtifactsInFlight` 2 and
+`maxArtifactsWaiting` 300, two are read at once, 300 wait, and the 303rd to
+arrive at that moment is told 503. When one finishes, a waiting one goes in,
+and there is room for one more to wait. With `maxArtifactsWaiting` 0, nothing
+waits: the first past the limit is refused at once.
+
+`maxArtifactsInFlight` is a whole number above 0: any other value is warned
+about and 1 is used. A `maxArtifactsWaiting` that is not a whole number is
+warned about and 100 is used, one below 0 is warned about and 0 is used, and
+one set without `maxArtifactsInFlight` is warned about and ignored.
+
+The two limits complement each other. `maxInFlightPerConnection` bounds one
+connection, and counts an artifact only once it has been read whole.
+`maxArtifactsInFlight` bounds the whole server, and counts an artifact before
+it is read.
+
+**For senders.** A 503 means the receiver is busy: send the same artifact
+again later. A provider's outbox, which retries, does this.
+
 ### Artifact size
 
 `maxArtifactSizeKb` is the receiver's choice, so a sender learns it only when
@@ -324,8 +365,8 @@ to be split.
 The exported defaults are `DEFAULT_MAX_ARTIFACT_SIZE_KB`,
 `MIN_MAX_ARTIFACT_SIZE_KB`, `DEFAULT_MAX_ARTIFACT_AGE_SECONDS`,
 `MIN_MAX_ARTIFACT_AGE_SECONDS`, `DEFAULT_CONNECTION_TIMEOUT_MS`,
-`DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` and `MIN_MAX_IN_FLIGHT_PER_CONNECTION`,
-from `@btps/sdk/server/core`.
+`DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION`, `MIN_MAX_IN_FLIGHT_PER_CONNECTION` and,
+since 1.2, `DEFAULT_MAX_ARTIFACTS_WAITING`, from `@btps/sdk/server/core`.
 
 #### Large documents
 
@@ -358,9 +399,14 @@ export const largeDocumentServer = (options: BtpsServerOptions) =>
 
 **The cost.** A BTPS server reads each artifact as one line, and holds it whole
 while it is parsed and its signature verified. The memory one artifact takes is
-several times its size. Size the server for that, and limit how many large
-artifacts it takes at once: `maxInFlightPerConnection` bounds how many one
-connection has handled at once.
+several times its size (about three times, measured). Size the server for that, and limit how many large artifacts it takes at once:
+`maxInFlightPerConnection` bounds how many one connection has handled at once,
+and, since 1.2, `maxArtifactsInFlight` bounds how many the whole server takes,
+with the rest queued and then refused with 503
+([Artifacts across the server](#artifacts-across-the-server)). Set it at about
+the memory you have for artifacts ÷ (3 × the largest artifact you accept). For
+more at once, run more server instances behind a load balancer, each with its
+own places. Chunked encryption, in a later release, is what removes this cost.
 
 **Why the default stays 5 MB.** A server nobody configured should not be made
 to hold a very large artifact for each connection.

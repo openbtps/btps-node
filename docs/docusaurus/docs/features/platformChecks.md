@@ -107,6 +107,8 @@ return res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { ret
 | `maxArtifactSizeKb`          | 5,120 (5 MB)       | one artifact's size, before it is read in full                                                                      |
 | `maxArtifactAgeSeconds`      | 300                | how far `issuedAt` may be from the server's clock                                                                   |
 | `maxInFlightPerConnection`   | 32                 | requests one connection may have handled at once; a request is in flight until its answer is written, signed or not |
+| `maxArtifactsInFlight`       | none (since 1.2)   | artifacts the whole server reads and handles at once, over every connection; when not set, there is no limit        |
+| `maxArtifactsWaiting`        | 100 (since 1.2)    | artifacts waiting for a place, unread; the next is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE` (503)               |
 | `maxConsecutiveInvalidLines` | 10 (since 1.2)     | unreadable lines in a row on one connection: the last is answered, with `status.closing`, and the connection ends   |
 | `connectionTimeoutMs`        | 30,000             | how long a connection with nothing in flight stays open                                                             |
 | `retiredKeyGraceSeconds`     | 86,400 (since 1.2) | how long a key its identity rotated away from as planned still signs ([Key rotation](./keyRotation.md))             |
@@ -120,6 +122,9 @@ A server holds each artifact whole while it reads it, parses it and verifies its
 - Keep the default `maxArtifactSizeKb` (5 MB) unless your platform needs more.
 - If you raise it, size the server's memory at about three times its largest artifact for each one that may arrive at once, on top of what it uses otherwise.
 - For example, ten 10 MB files make an artifact of about 190 MB, which needs about 600 MB for that artifact. A 512 MB container, fine at the default, is too small for it, while 1.5 to 2 GB takes one or two at once.
+- Since 1.2, set `maxArtifactsInFlight` from that memory, so the server reads no more at once than it holds: about the memory you have for artifacts ÷ (3 × the largest artifact you accept). A 2 GB container with about 1.2 GB of it for artifacts of up to 190 MB (about 600 MB each) takes 2. Small artifacts are rarely the limit: a 1 MB invoice takes about 3 MB.
+- The rest wait their turn, in order of arrival, up to `maxArtifactsWaiting` (100 by default). A waiting artifact is not read, so TCP holds its sender and it costs the server no memory. The next one is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE` (503), and its sender sends it again later, as a provider's outbox does. Without `maxArtifactsInFlight`, the server takes every artifact that arrives at once.
+- To take more at once, run more server instances behind a load balancer, each with its own places.
 
 This holds until chunked encryption comes in a later release: files will travel as separately encrypted parts, so no one artifact is held whole. To work out the limit itself, see [Large documents](../protocol/specifications/limits.md#large-documents).
 :::

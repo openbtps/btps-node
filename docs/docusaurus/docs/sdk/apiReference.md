@@ -1492,6 +1492,7 @@ Each is the value a `BtpsServerOptions` setting takes when it is not set, or the
 | `DEFAULT_CONNECTION_TIMEOUT_MS`        | `30000` | `connectionTimeoutMs` default: 30 seconds                 |
 | `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` | `32`    | `maxInFlightPerConnection` default                        |
 | `MIN_MAX_IN_FLIGHT_PER_CONNECTION`     | `1`     | `maxInFlightPerConnection` minimum: one request at a time |
+| `DEFAULT_MAX_ARTIFACTS_WAITING`        | `100`   | Since 1.2: `maxArtifactsWaiting` default                  |
 | `DEFAULT_RETIRED_KEY_GRACE_SECONDS`    | `86400` | Since 1.2: `retiredKeyGraceSeconds` default: 1 day        |
 | `DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS`  | `300`   | Since 1.2: `keyChainMaxCacheSeconds` default              |
 
