@@ -60,21 +60,6 @@ graph TD
 - **Server:** Checks size, version, signature, time window and trust, then hands the artifact to your handler; it answers the sender only after the handler returns, and refuses an artifact no handler takes
 - **Inbox:** Final destination for processing and storage; the receiver decrypts with its own key
 
-### Reading a connection
-
-Every artifact travels as one line of JSON. The server cuts each connection's bytes into lines with its own line framer, then hands each line to the middleware and the checks.
-
-```mermaid
-flowchart LR
-  S[TLS socket] -- bytes --> F["lineFramerStream (BtpsLineFramer)"]
-  F -- one artifact per line --> M[Middleware and checks]
-  F -- a line over maxArtifactSizeKb --> X["BTP_ERROR_ARTIFACT_TOO_LARGE, then the connection ends gently"]
-```
-
-- **Line framer:** each connection has its own, made by the `lineFramer` option with the limit from `maxArtifactSizeKb` in bytes; `BtpsLineFramer.utf8` when not set. Since 1.2, reading a line takes time and memory that grow with its size, not its square
-- **Too large:** a line over the limit is never held. The server reads no more lines, answers `BTP_ERROR_ARTIFACT_TOO_LARGE`, and ends the connection gently, dropping the rest the sender is still sending, so the answer reaches it
-- **Your own framer:** see [A custom line framer](./advancedUsages.md#a-custom-line-framer)
-
 ## Core Features
 
 - **Pluggable Trust Store:** Use file, SQL, NoSQL, or cloud backends

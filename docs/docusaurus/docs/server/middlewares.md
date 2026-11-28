@@ -61,7 +61,7 @@ Middleware can be registered for specific **phases** and **steps** in the reques
 
 ```mermaid
 flowchart TD
-  A[Incoming TLS line, cut by the line framer] --> S{Size within maxArtifactSizeKb?}
+  A[Incoming TLS line] --> S{Size within maxArtifactSizeKb?}
   S -- no --> X1[BTP_ERROR_ARTIFACT_TOO_LARGE]
   S -- yes --> B[before:parsing]
   B --> C[Parse & Validate]
@@ -89,8 +89,6 @@ flowchart TD
   L2 --> M[after:onArtifact]
   M --> N[Send Response]
 ```
-
-Each line is cut from the connection's bytes by its line framer, which also checks the size, before any middleware runs ([Reading a connection](./overview.md#reading-a-connection)).
 
 A middleware that sends a response itself stops processing at that point. If you include the default middleware, it rate-limits by IP at `before:parsing` and by identity at `after:signatureVerification`; without it there is no rate limit.
 

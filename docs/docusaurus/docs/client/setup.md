@@ -166,7 +166,6 @@ The `BtpsClient` constructor accepts the following options:
 | `maxQueue`            | number | No       | Maximum queue size for request handling (default: 100)                                                                                                                        |
 | `requireSignedBy`     | object | No       | Since 1.2: `{ identity, selector }`. Take no answer but one signed by this identity under this selector (see [6.3](#63-requiring-your-providers-signature)). Off when not set |
 | `keyResolver`         | object | No       | Since 1.2: a `BtpsKeyResolver` that finds the keys the client checks and encrypts with, in place of DNS. Without it, DNS                                                      |
-| `lineFramer`          | function | No     | Since 1.2: a `BTPLineFramerFactory` that makes the line framer each connection's answers are cut with. Without it, `BtpsLineFramer.utf8`, with no limit on an answer's size  |
 
 ## 3. Retry & Timeout Options
 

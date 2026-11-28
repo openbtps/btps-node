@@ -6,9 +6,8 @@
  */
 
 /**
- * Since 1.2: what cuts a stream of bytes into lines, one artifact to a line. The server and the
- * client depend on this, not on a class: any implementation may be given to them
- * (`BtpsServerOptions.lineFramer`, `BTPClientOptions.lineFramer`).
+ * Since 1.2, internal to the SDK: what cuts a stream of bytes into lines, one artifact to a line.
+ * `lineFramerStream` takes any implementation of it; the server and the client use `BtpsLineFramer`.
  */
 export interface BTPLineFramer<T> {
   /**
@@ -36,12 +35,3 @@ export interface BTPLineFramerOptions<T> {
   /** The byte that ends a line: 0x0a (`\n`) when not given. */
   delimiter?: number;
 }
-
-/** Since 1.2: what a framer for one connection is made with (`BtpsServerOptions.lineFramer`). */
-export interface BTPLineFramerLimits {
-  /** The most bytes one line may hold; `Infinity` for no limit. */
-  maxLineBytes: number;
-}
-
-/** Since 1.2: makes the framer for one connection. Each connection has its own: a framer holds its line. */
-export type BTPLineFramerFactory = (limits: BTPLineFramerLimits) => BTPLineFramer<string>;

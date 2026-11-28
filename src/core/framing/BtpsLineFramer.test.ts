@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { BtpsLineFramer } from './BtpsLineFramer.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTP_ERROR_LINE_FRAMER_OPTIONS } from '@core/error/constant.js';
+import { BTP_ERROR_UNKNOWN } from '@core/error/constant.js';
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 const bytesOf = (count: number, char = 'a'): Uint8Array => bytes(char.repeat(count));
@@ -100,7 +100,7 @@ describe('BtpsLineFramer', () => {
     expect(framer.push(new Uint8Array([1, 2, 3, 0, 4, 0]))).toEqual([3, 1]);
   });
 
-  it('refuses options it cannot work with, as BTP_ERROR_LINE_FRAMER_OPTIONS', () => {
+  it('refuses options it cannot work with: only the SDK makes one, so they are a mistake of the SDK', () => {
     const decode = (line: Uint8Array) => line;
     for (const options of [
       { decode, maxLineBytes: 0 },
@@ -113,7 +113,7 @@ describe('BtpsLineFramer', () => {
     ]) {
       expect(() => new BtpsLineFramer(options)).toThrow(BTPErrorException);
       expect(() => new BtpsLineFramer(options)).toThrow(
-        expect.objectContaining({ code: BTP_ERROR_LINE_FRAMER_OPTIONS.code }),
+        expect.objectContaining({ code: BTP_ERROR_UNKNOWN.code }),
       );
     }
   });

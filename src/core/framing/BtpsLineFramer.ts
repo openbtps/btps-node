@@ -6,21 +6,24 @@
  */
 
 import { BTPErrorException } from '@core/error/index.js';
-import { BTP_ERROR_LINE_FRAMER_OPTIONS } from '@core/error/constant.js';
+import { BTP_ERROR_UNKNOWN } from '@core/error/constant.js';
 import type { BTPLineFramer, BTPLineFramerOptions } from './types.js';
 
 const NEWLINE = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
 const UTF8 = new TextDecoder('utf-8');
 
+/** Only the SDK makes a framer, so options it cannot use are the SDK's own mistake, never a sender's. */
 const refuse = (detail: string): BTPErrorException =>
   new BTPErrorException({
-    ...BTP_ERROR_LINE_FRAMER_OPTIONS,
-    message: `${BTP_ERROR_LINE_FRAMER_OPTIONS.message}: ${detail}`,
+    ...BTP_ERROR_UNKNOWN,
+    message: `Line framer options are not usable: ${detail}`,
   });
 
 /**
- * Since 1.2: cuts bytes into lines, in time and memory that grow with the line, not its square.
+ * Since 1.2, internal to the SDK: cuts bytes into lines, in time and memory that grow with the
+ * line, not its square. What the server and the client read each connection with, in place of
+ * split2; not exported.
  *
  * The bytes of a line not yet ended are kept as the pieces they came in. Only each new piece is
  * searched for the delimiter, and a line's pieces are joined once, when it ends. A line that passes

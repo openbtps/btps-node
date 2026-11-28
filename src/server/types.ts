@@ -23,7 +23,6 @@ import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
-import type { BTPLineFramerFactory } from '@core/framing/types.js';
 import type { z } from 'zod';
 import type {
   BtpAgreementDocSchema,
@@ -78,11 +77,6 @@ export interface BtpsServerOptions {
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /** The largest artifact this server can accept, in KB (1 KB = 1024 bytes). Default 5120 (5 MB), minimum 1024 (1 MB). */
   maxArtifactSizeKb?: number;
-  /**
-   * Since 1.2: makes the line framer each connection's artifacts are cut with, given the limit
-   * from `maxArtifactSizeKb` in bytes. `BtpsLineFramer.utf8` when not given.
-   */
-  lineFramer?: BTPLineFramerFactory;
   /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
   maxArtifactAgeSeconds?: number;
   /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written. Default 32, minimum 1. */

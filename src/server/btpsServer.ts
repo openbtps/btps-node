@@ -47,12 +47,7 @@ import {
   BTP_ERROR_DETAILS_NOT_HELD,
   BTP_ERROR_ARTIFACT_TOO_LARGE,
 } from '@core/error/constant.js';
-import {
-  BtpsLineFramer,
-  lineFramerStream,
-  type BTPLineFramer,
-  type BTPLineFramerFactory,
-} from '@core/framing/index.js';
+import { BtpsLineFramer, lineFramerStream } from '@core/framing/index.js';
 import {
   assertStrictJson,
   getFingerprintFromPem,
@@ -197,8 +192,6 @@ export class BtpsServer {
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
-  /** Since 1.2: makes each connection's line framer (BtpsLineFramer.utf8 unless given). */
-  private readonly lineFramer: BTPLineFramerFactory;
   private readonly maxInFlightPerConnection: number;
   private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
@@ -236,7 +229,6 @@ export class BtpsServer {
     this.entityTypeOf = options.entityTypeOf;
     this.connectionTimeoutMs = resolveConnectionTimeoutMs(options.connectionTimeoutMs);
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
-    this.lineFramer = options.lineFramer ?? ((limits) => BtpsLineFramer.utf8(limits));
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
     );
@@ -385,16 +377,8 @@ export class BtpsServer {
     // Each line is one artifact, cut from the connection's bytes in time that grows with the line
     // (BtpsLineFramer). One over the limit is never held: no more lines are read, it is answered,
     // and the connection ends gently while the rest the peer sends is dropped, so the answer
-    // reaches a peer that is still sending. A framer the given factory cannot make is this
-    // connection's end alone, said to onError: never the server's.
-    let framer: BTPLineFramer<string>;
-    try {
-      framer = this.lineFramer({ maxLineBytes: Math.floor(this.maxArtifactSizeKb * 1024) });
-    } catch (err) {
-      this.onError?.(transformToBTPErrorException(err));
-      socket.destroy();
-      return;
-    }
+    // reaches a peer that is still sending.
+    const framer = BtpsLineFramer.utf8({ maxLineBytes: Math.floor(this.maxArtifactSizeKb * 1024) });
     const stream = lineFramerStream(framer, {
       onOverflow: () => {
         const error = new BTPErrorException({

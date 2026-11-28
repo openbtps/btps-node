@@ -219,7 +219,7 @@ import { BtpsClient } from '@btps/sdk/client';
 new BtpsClient(options: BTPClientOptions)
 ```
 
-- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (`to`, retries, timeouts, `host` overrides and, since 1.2, `requireSignedBy`, `keyResolver` and `lineFramer`). Throws `BTP_ERROR_IDENTITY` for an invalid `to`
+- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (`to`, retries, timeouts, `host` overrides and, since 1.2, `requireSignedBy` and `keyResolver`). Throws `BTP_ERROR_IDENTITY` for an invalid `to`
 
 **Example:**
 
@@ -2013,60 +2013,6 @@ export async function signLarge(
     new PemSigner({ publicKey, privateKey }),
   );
 }
-```
-
----
-
-## BtpsLineFramer
-
-Since 1.2. Cuts bytes into lines, one artifact to a line, in time and memory that grow with the line, not its square. The server and the client read every connection with one, through [lineFramerStream](./apiReference.md#lineframerstream). It implements [BTPLineFramer](./typesAndInterfaces.md#btplineframer).
-
-**Import:**
-
-```js
-import { BtpsLineFramer } from '@btps/sdk';
-```
-
-```ts
-class BtpsLineFramer<T> implements BTPLineFramer<T> {
-  static utf8(options?: { maxLineBytes?: number }): BtpsLineFramer<string>;
-  constructor(options: BTPLineFramerOptions<T>);
-  push(chunk: Uint8Array): readonly T[];
-  end(): readonly T[];
-  reset(): void;
-  readonly bufferedBytes: number;
-  readonly overflowed: boolean;
-}
-```
-
-| Member          | What it does                                                                                                                                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `utf8`          | A framer whose lines are UTF-8 text, as BTPS sends them: split on `\n`, with a carriage return just before it taken off. A carriage return anywhere else in a line is kept. The default framer of `BtpsServer` and `BtpsClient` |
-| constructor     | A framer with any `decode`, `maxLineBytes` and one-byte `delimiter` ([BTPLineFramerOptions](./typesAndInterfaces.md#btplineframeroptions)). Options it cannot work with throw `BTP_ERROR_LINE_FRAMER_OPTIONS`                   |
-| `push`          | Takes the next bytes and returns every line they complete, in order, without the delimiter. It keeps a copy of what it is given, so the caller may reuse its buffer                                                             |
-| `end`           | The input has ended: returns the last line, when no delimiter followed it, and nothing after a line over the limit. It leaves the framer empty, as `reset()` does                                                               |
-| `reset`         | Forgets what it holds, and a line over the limit, and starts afresh                                                                                                                                                             |
-| `bufferedBytes` | Bytes held of the line not yet ended                                                                                                                                                                                            |
-| `overflowed`    | Whether a line has passed `maxLineBytes` since the last `reset()`                                                                                                                                                               |
-
-**How it reads a long line.** The bytes of a line not yet ended are kept as the pieces they came in. Only each new piece is searched for the delimiter, and a line's pieces are joined once, when it ends. So reading a line takes time and memory that grow with its size.
-
-**Over the limit.** A line that passes `maxLineBytes` is never joined. `push` returns the lines before it, and from then on the framer holds nothing more and `push` returns nothing until `reset()`; `end()` returns nothing, and resets it. A peer cannot make it hold more than the limit. The limit counts bytes, not characters, and leaves out the delimiter.
-
-It does no I/O and has no stream of its own: it works wherever bytes are.
-
-**Example:**
-
-```ts check
-import { BtpsLineFramer } from '@btps/sdk';
-
-const bytes = (text: string) => new TextEncoder().encode(text);
-const framer = BtpsLineFramer.utf8({ maxLineBytes: 1024 * 1024 });
-
-export const first = framer.push(bytes('{"a":1}\r\n{"b"')); // ['{"a":1}']: the line ended, its \r taken off
-export const second = framer.push(bytes(':2}\n{"c":3}')); // ['{"b":2}']
-export const held = framer.bufferedBytes; // 7: the bytes of {"c":3}, not yet ended
-export const last = framer.end(); // ['{"c":3}']: the input ended
 ```
 
 ---
