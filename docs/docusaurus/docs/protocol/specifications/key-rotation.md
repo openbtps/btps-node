@@ -165,8 +165,8 @@ A 1.2 server checks every arriving artifact's signing key against its identity's
 
 | The chain                                                                          | The server                                                                                                               |
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| none to be had: a 1.1 host, an unreachable one, or one that answers with an error  | checks the key by DNS, as in 1.1                                                                                         |
-| empty: the identity never rotated                                                  | checks the key by DNS, as in 1.1                                                                                         |
+| none to be had: a 1.1 host, an unreachable one, or one that answers with an error  | checks the key as it [finds it](#finding-a-signature-key): in DNS, else from the identity's host                          |
+| empty: the identity never rotated                                                  | checks the key as it [finds it](#finding-a-signature-key): in DNS, else from the identity's host                          |
 | an answer that fails its checks, or a chain `keyChainProblem` refuses              | refuses: `BTP_ERROR_RESOLVE_PUBKEY`                                                                                      |
 | a chain, and the artifact's selector names its current key                         | takes it                                                                                                                 |
 | ... a key rotated away as planned, within `retiredKeyGraceSeconds` of its rotation | takes it                                                                                                                 |
@@ -176,13 +176,53 @@ A 1.2 server checks every arriving artifact's signing key against its identity's
 
 A key still in DNS never overrides the chain: a retired or expired key is refused whatever DNS has.
 
+### Finding a signature key
+
+Since 1.2, a key to check a signature is found the same way as a key to encrypt to. A key the identity's chain names at the signature's selector comes from the chain, as in the table above. Any other key is found this way:
+
+1. **DNS first:** the identity's own key record, at the selector the signature names (`<selector>._btps.identity.<account>.<domain>`).
+2. **Then the identity's host, only when DNS has no record for it:** an [identity lookup](./identity-lookup-artifact.md) to the host its domain's `_btps.host` record names, taken only in an answer signed by that record's operator (`op=`). The lookup carries the signature's selector as `identitySelector`, and the answer is taken only when its `selector` is that selector.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant V as Verifying server
+    participant D as DNS
+    participant H as The signer's host
+    V->>D: the signer's key record, at the signature's selector
+    alt DNS has the record
+        D-->>V: the key
+    else no such record
+        D-->>V: no record
+        V->>D: _btps.host of the signer's domain
+        D-->>V: host (u=), operator (op=)
+        V->>H: identity lookup, identitySelector = the signature's selector
+        H-->>V: the key at that selector, in an answer the operator signed
+        V->>V: refuse unless signed by op= and naming that selector
+    end
+    V->>V: check the signature with the key
+```
+
+So an identity whose key is not in DNS, as a provider's hosted addresses are (no provider publishes a DNS record per address), signs documents, cosignatures, delegations and attestations that any BTPS server can check. Before, such a key was found only to encrypt to, and a signature by it was refused with `BTP_ERROR_RESOLVE_PUBKEY`.
+
+Because the host is asked for the key at the signature's own selector, a signature made before a rotation names the key it was made with, and that key is checked against the chain like any other: within the grace for a live arrival, by its history for a forwarded cosignature and in an [evidence bundle](#in-an-evidence-bundle).
+
+Two rules bound it:
+
+- **A DNS failure is not "no record".** Only a DNS answer that there is no such record leads to the host. A lookup that fails for any other reason never does.
+- **The operator's own key is DNS's alone.** The operator's key is what every host answer is checked with, so no host vouches for it: a lookup for a domain's operator is refused before it is sent (`BTP_ERROR_IDENTITY_NOT_FOUND`).
+
+In the SDK, a `BtpsServer` given no `keyResolver` finds keys this way, asking hosts as its `serverIdentity` (`createDefaultKeyResolver({ from })`). A server given its own `keyResolver` finds signature keys through it alone: see [BtpsKeyResolver](../../sdk/typesAndInterfaces.md#btpskeyresolver).
+
+**A forwarded cosignature is checked by its key's history** (since 1.2). The same checks apply to each [cosignature](./transporter-artifact.md#cosignatures) an artifact carries, with one difference. A cosignature that an earlier artifact first delivered (its `artifactId` is not the carrying artifact's `id`) was signed when that artifact was sent, and is now only being forwarded. Its key, and a device's delegator's and attestor's, are taken by their history, as an [evidence bundle](#in-an-evidence-bundle) takes them: a key rotated away as planned since then still holds, whatever `retiredKeyGraceSeconds` is, and an expired key, one with `compromisedSince`, is still refused. A cosignature whose key is refused makes the server refuse the artifact with `BTP_ERROR_SIG_VERIFICATION`. A cosignature made now, delivered by the artifact that carries it, is held to the table above, the grace included. So an originator can forward the signers' cosignatures long after they answered, even when a signer has rotated its key since.
+
 **What DNS says.** Online, the chain must end at a key DNS publishes for the identity, at the chain's last selector or the domain's `s=`. The identity is host-only only when DNS has a record at neither; a DNS lookup that fails is refused, never taken for host-only. A record in the chain dated more than the server's `maxArtifactAgeSeconds` in the future is refused.
 
 **How soon a revocation counts.** A server keeps a chain for at most `keyChainMaxCacheSeconds` (default 300). A key revoked by its owner is refused live within that time, plus the DNS time-to-live of the records the lookup itself needs (`_btps.host` and the operator's key) if those change in the same incident. A `keyResolver` that gives chains itself (`resolveKeyChain`) keeps its own cache, and must keep a chain no longer.
 
 **A known limit: the host cannot be reached.** A chain lookup waits the client's connect timeout (5 seconds) and then 5 seconds for the answer, since the arrival waits for it; a host that takes longer is not reached. Then the server checks the key by DNS alone, as 1.1 does. An attacker who can stop a server reaching the sender's host gets that, and it is safe only because **a provider removes an expired key's DNS record at once**: a rule, not a choice. With the record gone, the key is refused (`BTP_ERROR_RESOLVE_PUBKEY`) within its DNS time-to-live and any key cache. A provider that also talks to 1.1 peers keeps a retired key's record for the grace after a planned rotation, so a 1.1 verifier, which reads DNS only, takes artifacts already in flight.
 
-**A known limit: a client checking its provider's answer.** A client or device checks a signed answer (`requireSignedBy`, an identity lookup's answer) and a result it opens by DNS alone, not by the operator's key chain. An answer signed by an expired operator key is refused once that key's DNS record is removed, within its DNS time-to-live; the same rule, removing an expired key's record at once, covers it.
+**A known limit: a client checking its provider's answer.** A client or device checks a signed answer (`requireSignedBy`, an identity lookup's answer) by DNS alone, and a result it opens by the key DNS or, when DNS has no record for it, the sender's host gives, not by a key chain. An answer signed by an expired operator key is refused once that key's DNS record is removed, within its DNS time-to-live; the same rule, removing an expired key's record at once, covers it.
 
 **Server options:** `retiredKeyGraceSeconds` (default 86,400, a day) and `keyChainMaxCacheSeconds` (default 300). See [Limits](./limits.md).
 
@@ -196,6 +236,8 @@ Since 1.2, a client sends a `1.2.0` lookup, and asks a 1.1 host again as `1.1.0`
 
 An old answer replayed, an answer to another lookup, and one about another identity are refused. The answer to a `1.1.0` lookup carries none of these, as in 1.1.
 
+A lookup for a key to check a signature also sends the signature's selector as `identitySelector`, and its answer is taken only when its document's `selector` is that selector ([Finding a signature key](#finding-a-signature-key)).
+
 ## In an evidence bundle
 
 An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) is read long after it was signed, when the keys that signed it may have been rotated away, their DNS records retired, or found compromised. So a bundle may carry each signing identity's chain, and the facts report each signing key against it.
@@ -207,7 +249,7 @@ An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) 
 
   Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
 
-- **`arrivals`**: `[{ statementSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", statementSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set.
+- **`arrivals`**: `[{ cosignatureSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement's cosignature arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", cosignatureSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set. Since 1.2 it names the cosignature by its [`cosignatureSha256`](./transporter-artifact.md#the-chain).
 
 For each signing key (the originator's, and each statement's: a device's is its delegator's), with its identity's chain in the bundle:
 
@@ -228,7 +270,7 @@ For each signing key (the originator's, and each statement's: a device's is its 
 
 **Disowned after the fact.** A party may, after signing, expire its own key from a date before its signature. The expiry stands on the chain, and `signedInWindow` is false. The bundle shows what it can against that: an independent time for the statement (a trusted timestamp's, else a signed arrival's) at or after `compromisedSince` and before the expiry was declared makes `disownedAfterTheFact` true. What follows from it is the reader's to decide. None of these facts changes `complete`.
 
-Offline, `anchors` (signing-key fingerprints the reader kept) anchor a chain, and `operators` (operator fingerprints the reader kept, by domain) let an operator's answer confirm a lost key's rotation. Online (`verifyEvidenceBundle`'s `online`, `btps-verify-evidence --online`), each signing key is confirmed now as its identity's: a key of its identity's chain, which must hold online [as a server requires](#checking-keys-on-arrival), or its DNS key when there is no chain. `keysConfirmedOnline` is true only when every one is. A bundle's signatures are past, so a key since rotated away or expired is still its identity's: when it was valid is in the facts above.
+Offline, `anchors` (signing-key fingerprints the reader kept) anchor a chain, and `operators` (operator fingerprints the reader kept, by domain) let an operator's answer confirm a lost key's rotation. Online (`verifyEvidenceBundle`'s `online`, `btps-verify-evidence --online`), each signing key is confirmed now as its identity's: a key of its identity's chain, which must hold online [as a server requires](#checking-keys-on-arrival), or, when there is no chain, its key at the signature's selector now: from DNS, or, with `online.keyResolver` (which `btps-verify-evidence --online` passes), as a server [finds it](#finding-a-signature-key), so a key not in DNS is confirmed through its host. `keysConfirmedOnline` is true only when every one is. A bundle's signatures are past, so a key since rotated away or expired is still its identity's: when it was valid is in the facts above.
 
 ## Deleting an old private key
 

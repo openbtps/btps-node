@@ -110,11 +110,13 @@ import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import {
+  checkedSignatureKey,
   verifyAttestation,
   verifyDelegation,
   verifyTransporterSignature,
   type BTPKeyChainCheck,
 } from '@core/delegation/verifyTransporterSignature.js';
+import { cosignaturesProblem } from '@core/trust/cosignatures.js';
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { resolveKeyChainMaxCacheSeconds, resolveRetiredKeyGraceSeconds } from './libs/keyChains.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
@@ -234,17 +236,17 @@ export class BtpsServer {
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
-    this.keyResolver = options.keyResolver;
     // Since 1.2: every arrival's keys are checked against their identity's key
     // chain, asked of its host as this server's identity, unless the resolver
-    // gives chains itself.
+    // gives chains itself. Without a resolver, a key not in DNS is asked of
+    // its identity's host, as this server, as an encryption key is.
     const keyChainMaxCacheSeconds = resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds);
-    const chains = options.keyResolver?.resolveKeyChain
-      ? options.keyResolver
-      : createDefaultKeyResolver({
-          from: options.serverIdentity.identity,
-          keyChainMaxCacheSeconds,
-        });
+    const ownResolver = createDefaultKeyResolver({
+      from: options.serverIdentity.identity,
+      keyChainMaxCacheSeconds,
+    });
+    this.keyResolver = options.keyResolver ?? ownResolver;
+    const chains = options.keyResolver?.resolveKeyChain ? options.keyResolver : ownResolver;
     this.keyChains = {
       resolveKeyChain: (identity) =>
         chains.resolveKeyChain?.(identity) ??
@@ -1244,7 +1246,25 @@ export class BtpsServer {
       this.keyResolver,
       this.keyChains,
     );
-    return { isValid, error };
+    if (!isValid || artifact.cosignatures === undefined) return { isValid, error };
+    // Since 1.2: every cosignature it carries, checked here as its own signature is, without decrypting.
+    const problem = await cosignaturesProblem(
+      artifact,
+      async (identity, selector, _fingerprint, forwarded) => {
+        // A forwarded cosignature's key by its history: rotated away as planned still holds; compromised never does.
+        const keyChains =
+          forwarded && this.keyChains
+            ? { ...this.keyChains, retiredKeyGraceSeconds: Infinity }
+            : this.keyChains;
+        const { key } = await checkedSignatureKey(identity, selector, this.keyResolver, keyChains);
+        return key;
+      },
+    );
+    if (!problem) return { isValid, error };
+    return {
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason: problem } }),
+    };
   }
 
   /**
@@ -1279,6 +1299,12 @@ export class BtpsServer {
    * Since 1.2: a details refresh, on an active trust in either direction, read
    * from the receiver's own record of it: its names against what each side
    * holds, and a response against a request it knows. Nothing is decrypted.
+   *
+   * Like a trust request or answer, a details message is about the trust, not
+   * sent over it as a document is, so the trust's privacy type does not apply
+   * to it. What it carries decides: a response carries values and is always
+   * encrypted; a notice or a request carries none and may go unencrypted (the
+   * schema holds both).
    */
   private async verifyDetailsTrust(
     artifact: BTPTransporterArtifact,
@@ -1309,7 +1335,7 @@ export class BtpsServer {
       }
     }
 
-    return this.verifyPrivacyType(artifact, record);
+    return { isTrusted: true, error: undefined };
   }
 
   /**
@@ -1445,9 +1471,10 @@ export class BtpsServer {
   }
 
   /**
-   * A trust records how its artifacts are sent: 'encrypted' refuses one sent in
-   * the clear, 'unencrypted' one the receiver did not agree to decrypt, and
-   * 'mixed' allows either. A record without one allows either.
+   * A trust records how the documents and events sent over it travel:
+   * 'encrypted' refuses one sent in the clear, 'unencrypted' one the receiver
+   * did not agree to decrypt, and 'mixed' allows either. A record without one
+   * allows either. Not applied to a trust or details message (above).
    */
   private verifyPrivacyType(
     artifact: BTPTransporterArtifact,

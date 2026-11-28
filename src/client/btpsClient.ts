@@ -904,12 +904,15 @@ export class BtpsClient {
    * @param identity - The identity to resolve
    * @param from - The from identity
    * @param receiverKey - The receiver's private key, or a Decrypter holding it
+   * @param identitySelector - Since 1.2: the identity's key at this selector, not its current one, as a signature
+   * names its key (one made before a rotation names the key it was made with)
    * @returns The resolved identity
    */
   async resolveIdentity(
     identity: string,
     from: string,
     receiverKey?: BTPDecryptionKey,
+    identitySelector?: string,
   ): Promise<
     | {
         response: BTPIdentityResDoc & {
@@ -945,7 +948,9 @@ export class BtpsClient {
       );
     }
 
-    const { selector, hostname, port, version } = btpHostDnsConfig;
+    const { selector: hostSelector, hostname, port, version } = btpHostDnsConfig;
+    // The identity's key at the selector asked for, or at the domain's own.
+    const selector = identitySelector ?? hostSelector;
 
     if (isEmpty(hostname) || !hostname) {
       return await this.buildClientErrorResponse(
@@ -996,11 +1001,19 @@ export class BtpsClient {
           }),
         );
       }
+      // The operator's key is what its host's answers are checked with: it is DNS's alone, never vouched for by itself.
+      if (sameIdentity(identity, operator)) {
+        return await this.buildClientErrorResponse(
+          new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
+            cause: `${identity} is its domain's operator, whose key is found in DNS only`,
+          }),
+        );
+      }
 
       // Since 1.2, a 1.2.0 lookup, so the answer names its identity and is
       // checked as this lookup's. A 1.1 host refuses its version, and is asked
       // again as 1.1 asks.
-      const host = { hostname, port, selector, operator };
+      const host = { hostname, port, selector: hostSelector, operator, identitySelector };
       let asked = await this.askHost(identity, from, host, BTP_PROTOCOL_VERSION, receiverKey);
       if (asked.kind === 'refused' && asked.code === BTP_ERROR_VERSION_UNSUPPORTED.code) {
         asked = await this.askHost(identity, from, host, MIN_SUPPORTED_VERSION, receiverKey);
@@ -1087,7 +1100,13 @@ export class BtpsClient {
   private askHost(
     identity: string,
     from: string,
-    host: { hostname: string; port: number; selector: string; operator: string },
+    host: {
+      hostname: string;
+      port: number;
+      selector: string;
+      operator: string;
+      identitySelector?: string;
+    },
     lookupVersion: string,
     receiverKey?: BTPDecryptionKey,
     keyChain?: true,
@@ -1147,6 +1166,7 @@ export class BtpsClient {
         identity,
         from,
         hostSelector: selector,
+        ...(host.identitySelector !== undefined && { identitySelector: host.identitySelector }),
         version: lookupVersion,
         id: randomUUID(),
         issuedAt: new Date().toISOString(),

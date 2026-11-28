@@ -440,7 +440,7 @@ client.on('error', (errInfo) => {
 ### 9.1 Available Methods
 
 - **`send(artifact, timeoutMs?)`**: Send an artifact and wait for response (`timeoutMs` replaces `replyTimeoutMs` for this send, at least 10000)
-- **`resolveIdentity(identity, from, receiverKey?)`**: The identity's public key: from the `keyResolver` or DNS, else from the identity's host, in an answer its domain's operator signed. `receiverKey` is your private key, or a `Decrypter`, for an encrypted answer. Since 1.2, the result also carries `serverVersion` when the host answered
+- **`resolveIdentity(identity, from, receiverKey?, identitySelector?)`**: The identity's public key: from the `keyResolver` or DNS, else from the identity's host, in an answer its domain's operator signed. `receiverKey` is your private key, or a `Decrypter`, for an encrypted answer. Since 1.2, the result also carries `serverVersion` when the host answered, and `identitySelector` asks for the key at that selector, as a signature names its key, rather than at the domain's `s=`. A domain's operator is never asked of its host: its key is found in DNS only. See [resolveIdentity](../sdk/classApiReference.md#resolveidentity)
 - **`getServerVersion()`**: Since 1.2: the protocol version the server speaks, from its answer to a `PING` that every 1.1 and 1.2 server answers
 - **`lookupKeyChain(identity, from, options?)`**: Since 1.2: the identity's key chain from its host (`status: 'chain'`), or why there is none (`'unavailable'`, `'invalid'`). See [Key rotation](../features/keyRotation.md)
 - **`resolveBtpsHostDnsTxt(identity)`**: The identity's host, port, selector, version and operator, from its `_btps.host` record (or from `host`)

@@ -2107,7 +2107,7 @@ export function trustPermissions() {
   });
   return {
     description:
-      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`. An organisation's request is held to this by its envelope; a person's by the receiving server, which takes it without anything given when the receiver is an organisation (a person asking an organisation gives nothing in return), and so its envelope cases here are accepted. A `1.2.0` `TRUST_REQ` always carries `permissions`; one that asks for everything is a `1.1.0` request. `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`. An organisation's request is held to this by its envelope; a person's by the receiving server, which takes it without anything given when the receiver is an organisation (a person asking an organisation gives nothing in return), and so its envelope cases here are accepted. A `1.2.0` `TRUST_REQ` always carries `permissions`; one that asks for everything is a `1.1.0` request. `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted, and so is a request that gives a detail or an answer that grants one, since its values are in its document (a request's 1.1 fields included). `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
     envelopes: [
       named('request', request, 'accept'),
       named(
@@ -2306,6 +2306,17 @@ export function trustPermissions() {
         'a request with own values is encrypted',
       ),
       named(
+        'request-giving-details-unencrypted',
+        {
+          ...request,
+          given: ['detail:legalName', 'detail:email', 'detail:phone', 'detail:address'],
+          encryption: null,
+          document: { ...base.trustRequest, address: '1 Kauri Street, Wellington' },
+        },
+        'refuse',
+        'a request that gives details is encrypted',
+      ),
+      named(
         'request-carrying-granted',
         { ...request, granted },
         'refuse',
@@ -2400,6 +2411,12 @@ export function trustPermissions() {
         { ...response, encryption: null, document: responseDoc },
         'refuse',
         'a response with details is encrypted',
+      ),
+      named(
+        'response-granting-details-unencrypted',
+        { ...response, encryption: null, document: base.trustResponse },
+        'refuse',
+        'an answer that grants details is encrypted',
       ),
       named(
         'response-carrying-given',
@@ -3061,9 +3078,13 @@ const signatureBy = (key, value) => ({
 });
 
 /**
- * BTPS 1.2 agreements: the agreement document, the signers' answers and their
- * order, and the evidence bundle. `keys` are the originator's, two signers',
- * a device's and the device's operator's, each `{ publicKeyPem, privateKeyPem }`.
+ * BTPS 1.2 agreements: the agreement document, the signers' answers as cosignatures and their order, and the
+ * evidence bundle. `keys` are the originator's, two signers', a device's and the device's operator's, each
+ * `{ publicKeyPem, privateKeyPem }`.
+ *
+ * A cosignature is made here from the specification, never by the SDK: its statement and padding (RFC 8785, padded
+ * with '0's up to a multiple of 4096 characters) encrypted once with AES-256-GCM, its content key wrapped with
+ * RSA-OAEP (SHA-256) to every party, then the cosignature signed over its RFC 8785 form, ciphertext included.
  */
 export function agreements(keys) {
   const BANK = 'loans$bank.example';
@@ -3080,12 +3101,20 @@ export function agreements(keys) {
   };
   const BY = '2026-11-30T00:00:00.000Z';
   const at = (day) => `2026-11-${String(day).padStart(2, '0')}T00:00:00.000Z`;
+  // Since 1.2: an agreement carries 32 random bytes, so its contentSha256 cannot confirm a guess at its text.
+  const SALT = Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64');
+  /** A version 4 UUID, the same for the same seed: an artifact's id, as its cosignature and statement name it. */
+  const uuidOf = (seed) => {
+    const h = sha256Hex(Buffer.from(seed, 'utf8'));
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  };
 
   // An agreement as its originator signs it: the content, then its statement over it.
   const contentOf = (acceptance, more = {}) => ({
     type: 'agreement',
     title: 'Home loan agreement',
     id: 'AGR-1',
+    salt: SALT,
     issuedAt: ISSUED_AT,
     body: note('# Home loan\n\nThe terms are attached. Each of you accepts them in turn.'),
     attachments: [terms],
@@ -3116,31 +3145,84 @@ export function agreements(keys) {
   const anyOrder = signed(anyContent);
   const anyRef = refOf(anyContent);
 
-  // A signer's statement, and its record signed by an identity key or a device key.
+  // Every party a cosignature is encrypted to: the originator and each signer.
+  const parties = [
+    { identity: BANK, key: keys.originator },
+    { identity: ALICE, key: keys.signer },
+    { identity: SAM, key: keys.guarantor },
+  ];
+  const PAD = 4096;
+  /** A statement as a cosignature encrypts it: exact text, padded so its length does not tell its decision. */
+  const statementText = (statement) => {
+    const bare = canonicalizeValue({ statement, padding: '' });
+    return canonicalizeValue({ statement, padding: '0'.repeat((PAD - (bare.length % PAD)) % PAD) });
+  };
+  /** A cosignature: its statement encrypted once to every recipient, then signed over (encrypt, then sign). */
+  const cosignatureOf = (statement, signerKey, selector, recipients = parties) => {
+    const text = statementText(statement);
+    const contentKey = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', contentKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    const unsigned = {
+      ref: statement.agreement,
+      signer: statement.signer,
+      ...(selector && { selector }),
+      artifactId: statement.artifactId,
+      ...(statement.previous && { previous: statement.previous }),
+      statementSha256: sha256Hex(Buffer.from(text, 'utf8')),
+      recipients: recipients
+        .map(({ identity, key }) => ({
+          identity,
+          fingerprint: fingerprintOf(key.publicKeyPem),
+          wrappedKey: oaepEncrypt(key.publicKeyPem, contentKey, { oaepHash: 'sha256', mgf1Hash: 'sha256' }).toString(
+            'base64',
+          ),
+        }))
+        .sort((a, b) => (a.identity < b.identity ? -1 : 1)),
+      encryption: {
+        algorithm: 'aes-256-gcm',
+        iv: iv.toString('base64'),
+        authTag: cipher.getAuthTag().toString('base64'),
+      },
+      ciphertext: ciphertext.toString('base64'),
+    };
+    return { ...unsigned, signature: signatureBy(signerKey, unsigned) };
+  };
+  /** What the next cosignature names as `previous`: the SHA-256 of one's RFC 8785 form, signature included, without a device's delegated artifact. */
+  const chainHashOf = ({ cosignature }) =>
+    hashOf(Object.fromEntries(Object.entries(cosignature).filter(([k]) => k !== 'delegatedArtifact')));
+
+  // A signer's statement, and its cosignature signed by an identity key or a device key.
   const stated = (signer, decision, signedAt, previous, about = ref) => ({
     agreement: about,
     terms: [terms.sha256],
     signer,
+    artifactId: uuidOf(`${signer} ${decision} ${signedAt} ${previous ?? ''} ${about.id} ${about.contentSha256}`),
     decision,
     signedAt,
     ...(previous && { previous }),
   });
-  const byIdentity = (key, statement) => ({
+  /** An answer: its plain statement, its cosignature, and the exact text the cosignature encrypts. */
+  const byIdentity = (key, statement, recipients) => ({
     statement,
-    selector: 'btps1',
-    signature: signatureBy(key, statement),
+    cosignature: cosignatureOf(statement, key, 'btps1', recipients),
+    text: statementText(statement),
   });
-  // A device's record carries the whole event artifact that delivered it, as it
-  // arrived: signed by the device, delegated by the signer's operator.
+  // A device's cosignature is signed with its device's key, in the delegated artifact that first delivers it (whose
+  // delegation stands for it there); its originator forwards it with that artifact. The artifact is the answer itself,
+  // signed by the device and delegated by the signer's operator.
   const byDevice = (
     statement,
     deviceKey = keys.device,
     delegator = { identity: OPERATOR, key: keys.operator },
+    artifactId = statement.artifactId,
   ) => {
+    const cosignature = cosignatureOf(statement, keys.device);
     const artifact = {
       version: V12,
       issuedAt: statement.signedAt,
-      id: '7a1c2e3f-4b5d-4c6e-8f70-81a2b3c4d5e6',
+      id: artifactId,
       type: 'BTPS_EVENT',
       from: statement.signer,
       to: BANK,
@@ -3154,6 +3236,7 @@ export function agreements(keys) {
         type: 'standardEncrypt',
       },
       document: 'ciphertext',
+      cosignatures: [cosignature],
     };
     const withSignature = { ...artifact, signature: signatureBy(keys.device, artifact) };
     const delegation = {
@@ -3163,59 +3246,47 @@ export function agreements(keys) {
       issuedAt: statement.signedAt,
       selector: 'btps1',
     };
+    const delegatedArtifact = {
+      ...withSignature,
+      delegation: { ...delegation, signature: signatureBy(delegator.key, { ...withSignature, delegation }) },
+    };
     return {
       statement,
-      signature: signatureBy(keys.device, statement),
-      delegatedArtifact: {
-        ...withSignature,
-        delegation: {
-          ...delegation,
-          signature: signatureBy(delegator.key, { ...withSignature, delegation }),
-        },
-      },
+      // As forwarded: with the artifact that delivered it.
+      cosignature: { ...cosignature, delegatedArtifact },
+      // As its device sent it, in that artifact.
+      asSent: cosignature,
+      delegatedArtifact,
+      text: statementText(statement),
     };
   };
 
   const alice = byIdentity(keys.signer, stated(ALICE, 'accepted', at(2)));
-  const sam = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(alice)));
-  const bank = byIdentity(keys.originator, stated(BANK, 'accepted', at(4), hashOf(sam)));
+  const sam = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), chainHashOf(alice)));
+  const bank = byIdentity(keys.originator, stated(BANK, 'accepted', at(4), chainHashOf(sam)));
   const aliceByDevice = byDevice(stated(ALICE, 'accepted', at(2)));
-  const samAfterDevice = byIdentity(
-    keys.guarantor,
-    stated(SAM, 'accepted', at(3), hashOf(aliceByDevice)),
-  );
-  const bankAfterDevice = byIdentity(
-    keys.originator,
-    stated(BANK, 'accepted', at(4), hashOf(samAfterDevice)),
-  );
+  const samAfterDevice = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), chainHashOf(aliceByDevice)));
+  const bankAfterDevice = byIdentity(keys.originator, stated(BANK, 'accepted', at(4), chainHashOf(samAfterDevice)));
   const aliceDeclines = byIdentity(keys.signer, stated(ALICE, 'declined', at(2)));
-  // Since 1.2: a signer's own signature on its acceptance, inside what it signs.
-  const signedWith = (decision, visualSignature) =>
-    byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), visualSignature });
   const typed = { type: 'typed', text: 'Alice Ng' };
   const drawn = { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] };
-  // Since 1.2: the signer's consent to sign electronically, and when it viewed the agreement.
-  const statedWith = (decision, more) =>
-    byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), ...more });
   const consent = { electronic: true, disclosureSha256: 'd'.repeat(64), at: at(1) };
 
-  // Answer events, as an opened BTPS_EVENT carries them.
-  const answer = (eventType, record, more = {}) => ({
+  // Answer and forwarding events, as an opened BTPS_EVENT carries them: their statements travel outside them, as cosignatures.
+  const answer = (eventType, given, more = {}) => ({
     type: 'agreement_event',
-    id: '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3',
-    occurredAt: record.statement.signedAt,
+    id: given.statement.artifactId,
+    occurredAt: given.statement.signedAt,
     eventType,
-    agreement: record.statement.agreement,
-    statement: record,
+    agreement: given.statement.agreement,
     ...more,
   });
-  const forwarded = (eventType, statements) => ({
+  const forwarded = (eventType) => ({
     type: 'agreement_event',
     id: '6e7f8091-0213-4b4c-9d5e-6f708192a3b4',
     occurredAt: at(4),
     eventType,
     agreement: ref,
-    statements,
   });
 
   // Documents, read under the version they travel in.
@@ -3229,21 +3300,9 @@ export function agreements(keys) {
   const documents = [
     docCase(accept, 'agreement', agreement),
     docCase(accept, 'agreement-in-any-order', anyOrder),
-    docCase(
-      accept,
-      'agreement-without-a-deadline',
-      withAcceptance({ ...content.acceptance, by: undefined }),
-    ),
-    docCase(
-      accept,
-      'agreement-with-no-terms-attached',
-      withAcceptance({ ...content.acceptance, terms: [] }),
-    ),
-    docCase(
-      accept,
-      'agreement-with-twenty-signers',
-      withAcceptance({ ...content.acceptance, signers: signers(20) }),
-    ),
+    docCase(accept, 'agreement-without-a-deadline', withAcceptance({ ...content.acceptance, by: undefined })),
+    docCase(accept, 'agreement-with-no-terms-attached', withAcceptance({ ...content.acceptance, terms: [] })),
+    docCase(accept, 'agreement-with-twenty-signers', withAcceptance({ ...content.acceptance, signers: signers(20) })),
     docCase(accept, 'agreement-with-a-signatory', {
       ...agreement,
       signatory: { name: 'Loans team', visualSignature: { type: 'typed', text: 'Loans team' } },
@@ -3263,10 +3322,7 @@ export function agreements(keys) {
     docCase(
       refuse,
       'agreement-naming-a-signer-twice',
-      withAcceptance({
-        ...content.acceptance,
-        signers: [{ address: ALICE }, { address: 'Alice$Client.example' }],
-      }),
+      withAcceptance({ ...content.acceptance, signers: [{ address: ALICE }, { address: 'Alice$Client.example' }] }),
       'each signer appears once, letters compared without case',
     ),
     docCase(
@@ -3305,24 +3361,21 @@ export function agreements(keys) {
       withAcceptance({ ...content.acceptance, by: 'end of November' }),
       'by is a date and time',
     ),
-    docCase(
-      refuse,
-      'agreement-without-acceptance',
-      { ...agreement, acceptance: undefined },
-      'an agreement always carries acceptance',
-    ),
+    docCase(refuse, 'agreement-without-acceptance', { ...agreement, acceptance: undefined }, 'an agreement always carries acceptance'),
     docCase(
       refuse,
       'agreement-without-the-originator-signature',
       { ...agreement, originatorSignature: undefined },
       'an agreement always carries its originator signature',
     ),
+    docCase(refuse, 'agreement-without-a-salt', { ...agreement, salt: undefined }, 'an agreement carries its salt'),
     docCase(
       refuse,
-      'agreement-with-a-kind',
-      { ...agreement, kind: 'agreement' },
-      'there is no kind: the type says what it is',
+      'agreement-with-a-short-salt',
+      { ...agreement, salt: Buffer.from('sixteen bytes!!!', 'utf8').toString('base64') },
+      'a salt is 32 random bytes',
     ),
+    docCase(refuse, 'agreement-with-a-kind', { ...agreement, kind: 'agreement' }, 'there is no kind: the type says what it is'),
     docCase(
       refuse,
       'letter-with-acceptance',
@@ -3332,141 +3385,20 @@ export function agreements(keys) {
     refuse('agreement-under-1-1', 'BTPS_DOC', agreement, '1.1 has no agreement', under(V11)),
   ];
 
-  // Answer and forwarding events.
+  // Answer and forwarding events: their statements travel outside them (cosignatures).
   const eventCase = (fn, name, document, why) =>
     fn === accept
       ? accept(name, 'BTPS_EVENT', document, under(V12))
       : refuse(name, 'BTPS_EVENT', document, why, under(V12));
   const events = [
     eventCase(accept, 'accepted', answer('accepted', alice)),
-    eventCase(accept, 'accepted-by-a-device', answer('accepted', aliceByDevice)),
     eventCase(
       accept,
       'declined-with-a-note',
       answer('declined', aliceDeclines, { message: note('The rate is not what we discussed.') }),
     ),
-    eventCase(accept, 'agreement-progress', forwarded('agreement_progress', [alice])),
-    eventCase(accept, 'agreement-complete', forwarded('agreement_complete', [alice, sam, bank])),
-    eventCase(
-      accept,
-      'accepted-with-a-typed-signature',
-      answer('accepted', signedWith('accepted', typed)),
-    ),
-    eventCase(
-      accept,
-      'accepted-with-a-drawn-signature',
-      answer('accepted', signedWith('accepted', drawn)),
-    ),
-    eventCase(
-      refuse,
-      'declined-with-a-signature',
-      answer('declined', signedWith('declined', typed)),
-      'only an acceptance carries a visualSignature',
-    ),
-    eventCase(
-      refuse,
-      'typed-signature-with-markup',
-      answer('accepted', signedWith('accepted', { type: 'typed', text: '<b>Alice</b>' })),
-      'a typed signature is plain text',
-    ),
-    eventCase(
-      refuse,
-      'drawn-signature-off-the-canvas',
-      answer('accepted', signedWith('accepted', { type: 'drawn', strokes: [[0, 0, 1001, 10]] })),
-      'a drawn signature is x, y pairs on a 1000 by 300 canvas',
-    ),
-    eventCase(
-      accept,
-      'accepted-with-consent-and-when-viewed',
-      answer(
-        'accepted',
-        statedWith('accepted', { visualSignature: typed, consent, viewedAt: at(1) }),
-      ),
-    ),
-    eventCase(
-      accept,
-      'declined-saying-when-viewed',
-      answer('declined', statedWith('declined', { viewedAt: at(1) })),
-    ),
-    eventCase(
-      refuse,
-      'declined-with-a-consent',
-      answer('declined', statedWith('declined', { consent })),
-      'only an acceptance carries a consent',
-    ),
-    eventCase(
-      refuse,
-      'consent-not-electronic',
-      answer('accepted', statedWith('accepted', { consent: { ...consent, electronic: false } })),
-      'a consent says electronic: true',
-    ),
-    eventCase(
-      refuse,
-      'consent-after-signing',
-      answer('accepted', statedWith('accepted', { consent: { ...consent, at: at(3) } })),
-      'a consent is given no later than its statement is signed',
-    ),
-    eventCase(
-      refuse,
-      'viewed-after-signing',
-      answer('accepted', statedWith('accepted', { viewedAt: at(3) })),
-      'an agreement is viewed no later than its statement is signed',
-    ),
-    eventCase(
-      accept,
-      'accepted-saying-where-viewed-and-signed-from',
-      answer(
-        'accepted',
-        statedWith('accepted', {
-          viewedAt: at(1),
-          viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
-          signedFrom: { ip: '2001:db8::7' },
-        }),
-      ),
-    ),
-    eventCase(
-      accept,
-      'accepted-on-a-registered-app-device',
-      answer(
-        'accepted',
-        statedWith('accepted', {
-          signedFrom: {
-            ip: '203.0.113.7',
-            device: { os: 'iOS', osVersion: '19.1', model: 'iPhone16,2', app: 'Example App', appVersion: '2.4.0', id: 'device-7f3a' },
-          },
-        }),
-      ),
-    ),
-    eventCase(
-      refuse,
-      'signed-from-a-device-saying-nothing',
-      answer('accepted', statedWith('accepted', { signedFrom: { device: {} } })),
-      'a device says at least one thing of itself',
-    ),
-    eventCase(
-      refuse,
-      'viewed-from-without-when',
-      answer('accepted', statedWith('accepted', { viewedFrom: { ip: '203.0.113.7' } })),
-      'a viewedFrom says where a viewedAt was',
-    ),
-    eventCase(
-      refuse,
-      'signed-from-not-an-ip',
-      answer('accepted', statedWith('accepted', { signedFrom: { ip: 'not-an-address' } })),
-      'an ip is an IPv4 or IPv6 address',
-    ),
-    eventCase(
-      refuse,
-      'signed-from-user-agent-with-control-characters',
-      answer('accepted', statedWith('accepted', { signedFrom: { userAgent: 'Mozilla\u0007/5.0' } })),
-      'a user agent is printable text',
-    ),
-    eventCase(
-      refuse,
-      'signed-from-saying-nothing',
-      answer('accepted', statedWith('accepted', { signedFrom: {} })),
-      'a context says an ip, a userAgent or a device',
-    ),
+    eventCase(accept, 'agreement-progress', forwarded('agreement_progress')),
+    eventCase(accept, 'agreement-complete', forwarded('agreement_complete')),
     eventCase(
       refuse,
       'accepted-with-a-note',
@@ -3475,56 +3407,95 @@ export function agreements(keys) {
     ),
     eventCase(
       refuse,
-      'accepted-carrying-a-declined-statement',
-      answer('accepted', aliceDeclines),
-      "the event's eventType is its statement's decision",
+      'accepted-carrying-its-statement',
+      answer('accepted', alice, { statement: { statement: alice.statement, selector: 'btps1', signature: alice.cosignature.signature } }),
+      "an answer's statement travels as its cosignature, outside the event",
     ),
     eventCase(
       refuse,
-      'record-signed-both-ways',
-      answer('accepted', { ...alice, delegatedArtifact: aliceByDevice.delegatedArtifact }),
-      'a record has exactly one of selector and delegatedArtifact',
+      'agreement-complete-carrying-statements',
+      { ...forwarded('agreement_complete'), statements: [] },
+      'forwarded statements travel as cosignatures, outside the event',
     ),
-    eventCase(
+    eventCase(refuse, 'statement-with-another-event-type', answer('maybe', alice), 'an agreement event is accepted, declined, agreement_progress or agreement_complete'),
+    refuse('accepted-under-1-1', 'BTPS_EVENT', answer('accepted', alice), '1.1 has no agreement events', under(V11)),
+  ];
+
+  // A cosignature's opened statement: the statement's own rules, and its padding.
+  const cosignedCase = (fn, name, statement, why, padding) => ({
+    name,
+    value: padding === undefined ? JSON.parse(statementText(statement)) : { statement, padding },
+    expect: fn === accept ? 'accept' : 'refuse',
+    ...(why && { why }),
+  });
+  const aliceSays = (decision, more = {}) => ({ ...stated(ALICE, decision, at(2)), ...more });
+  const cosigned = [
+    cosignedCase(accept, 'accepted', aliceSays('accepted')),
+    cosignedCase(accept, 'declined', aliceSays('declined')),
+    cosignedCase(accept, 'accepted-with-a-typed-signature', aliceSays('accepted', { visualSignature: typed })),
+    cosignedCase(accept, 'accepted-with-a-drawn-signature', aliceSays('accepted', { visualSignature: drawn })),
+    cosignedCase(refuse, 'declined-with-a-signature', aliceSays('declined', { visualSignature: typed }), 'only an acceptance carries a visualSignature'),
+    cosignedCase(
       refuse,
-      'record-signed-neither-way',
-      answer('accepted', { statement: alice.statement, signature: alice.signature }),
-      'a record has exactly one of selector and delegatedArtifact',
+      'typed-signature-with-markup',
+      aliceSays('accepted', { visualSignature: { type: 'typed', text: '<b>Alice</b>' } }),
+      'a typed signature is plain text',
     ),
-    eventCase(
+    cosignedCase(
       refuse,
-      'statement-with-another-decision',
-      answer('accepted', byIdentity(keys.signer, stated(ALICE, 'maybe', at(2)))),
-      'decision is accepted or declined',
+      'drawn-signature-off-the-canvas',
+      aliceSays('accepted', { visualSignature: { type: 'drawn', strokes: [[0, 0, 1001, 10]] } }),
+      'a drawn signature is x, y pairs on a 1000 by 300 canvas',
     ),
-    eventCase(
+    cosignedCase(accept, 'accepted-with-consent-and-when-viewed', aliceSays('accepted', { visualSignature: typed, consent, viewedAt: at(1) })),
+    cosignedCase(accept, 'declined-saying-when-viewed', aliceSays('declined', { viewedAt: at(1) })),
+    cosignedCase(refuse, 'declined-with-a-consent', aliceSays('declined', { consent }), 'only an acceptance carries a consent'),
+    cosignedCase(
       refuse,
-      'statement-without-a-time',
-      answer('accepted', { ...alice, statement: { ...alice.statement, signedAt: undefined } }),
-      'a statement has its signedAt',
+      'consent-not-electronic',
+      aliceSays('accepted', { consent: { ...consent, electronic: false } }),
+      'a consent says electronic: true',
     ),
-    eventCase(
+    cosignedCase(
       refuse,
-      'agreement-progress-with-no-statements',
-      forwarded('agreement_progress', []),
-      'forwarding carries at least one statement',
+      'consent-after-signing',
+      aliceSays('accepted', { consent: { ...consent, at: at(3) } }),
+      'a consent is given no later than its statement is signed',
     ),
-    eventCase(
+    cosignedCase(refuse, 'viewed-after-signing', aliceSays('accepted', { viewedAt: at(3) }), 'an agreement is viewed no later than its statement is signed'),
+    cosignedCase(
+      accept,
+      'accepted-saying-where-viewed-and-signed-from',
+      aliceSays('accepted', {
+        viewedAt: at(1),
+        viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
+        signedFrom: { ip: '2001:db8::7' },
+      }),
+    ),
+    cosignedCase(
+      accept,
+      'accepted-on-a-registered-app-device',
+      aliceSays('accepted', {
+        signedFrom: {
+          ip: '203.0.113.7',
+          device: { os: 'iOS', osVersion: '19.1', model: 'iPhone16,2', app: 'Example App', appVersion: '2.4.0', id: 'device-7f3a' },
+        },
+      }),
+    ),
+    cosignedCase(refuse, 'signed-from-a-device-saying-nothing', aliceSays('accepted', { signedFrom: { device: {} } }), 'a device says at least one thing of itself'),
+    cosignedCase(refuse, 'viewed-from-without-when', aliceSays('accepted', { viewedFrom: { ip: '203.0.113.7' } }), 'a viewedFrom says where a viewedAt was'),
+    cosignedCase(refuse, 'signed-from-not-an-ip', aliceSays('accepted', { signedFrom: { ip: 'not-an-address' } }), 'an ip is an IPv4 or IPv6 address'),
+    cosignedCase(
       refuse,
-      'agreement-complete-with-twenty-one-statements',
-      forwarded(
-        'agreement_complete',
-        Array.from({ length: 21 }, () => alice),
-      ),
-      'at most one statement for each of at most 20 signers',
+      'signed-from-user-agent-with-control-characters',
+      aliceSays('accepted', { signedFrom: { userAgent: 'Mozilla\u0007/5.0' } }),
+      'a user agent is printable text',
     ),
-    refuse(
-      'accepted-under-1-1',
-      'BTPS_EVENT',
-      answer('accepted', alice),
-      '1.1 has no agreement events',
-      under(V11),
-    ),
+    cosignedCase(refuse, 'signed-from-saying-nothing', aliceSays('accepted', { signedFrom: {} }), 'a context says an ip, a userAgent or a device'),
+    cosignedCase(refuse, 'statement-with-another-decision', aliceSays('maybe'), 'decision is accepted or declined'),
+    cosignedCase(refuse, 'statement-without-a-time', aliceSays('accepted', { signedAt: undefined }), 'a statement has its signedAt'),
+    cosignedCase(refuse, 'statement-without-its-artifact', aliceSays('accepted', { artifactId: undefined }), 'a statement names the artifact that delivers it'),
+    cosignedCase(refuse, 'padding-past-its-bucket', aliceSays('accepted'), 'padding is shorter than its bucket', '0'.repeat(PAD + 1)),
   ];
 
   // Envelopes: what a server reads without opening anything.
@@ -3533,12 +3504,13 @@ export function agreements(keys) {
     to: ALICE,
     documentType: 'agreement',
   });
-  const envelope = (name, artifact, expect, why) => ({
-    name,
-    artifact,
-    expect,
-    ...(why && { why }),
+  const answerEnvelope = transporter('BTPS_EVENT', alice.statement.artifactId, {
+    from: ALICE,
+    to: BANK,
+    relatesTo: 'agreement-copy-to-alice',
+    cosignatures: [alice.cosignature],
   });
+  const envelope = (name, artifact, expect, why) => ({ name, artifact, expect, ...(why && { why }) });
   const envelopes = [
     envelope('agreement-sent', send, 'accept'),
     envelope(
@@ -3551,24 +3523,42 @@ export function agreements(keys) {
       }),
       'accept',
     ),
+    envelope('agreement-sent-under-1-1', { ...send, version: V11 }, 'refuse', '1.1 has no documentType'),
+    envelope('answer-carrying-its-cosignature', answerEnvelope, 'accept'),
     envelope(
-      'agreement-sent-under-1-1',
-      { ...send, version: V11 },
+      'forward-carrying-every-cosignature',
+      transporter('BTPS_EVENT', '6e7f8091-0213-4b4c-9d5e-6f708192a3b4', {
+        from: BANK,
+        to: ALICE,
+        relatesTo: 'agreement-copy-to-alice',
+        cosignatures: [alice.cosignature, sam.cosignature, bank.cosignature],
+      }),
+      'accept',
+    ),
+    envelope('cosignatures-on-a-document', { ...send, cosignatures: [alice.cosignature] }, 'refuse', 'cosignatures are only on a BTPS_EVENT'),
+    envelope('cosignatures-under-1-1', { ...answerEnvelope, version: V11 }, 'refuse', 'cosignatures are only in a 1.2.0 artifact'),
+    envelope('no-cosignatures', { ...answerEnvelope, cosignatures: [] }, 'refuse', 'cosignatures are at least one'),
+    envelope(
+      'cosignature-signed-both-ways',
+      { ...answerEnvelope, cosignatures: [{ ...alice.cosignature, delegatedArtifact: aliceByDevice.delegatedArtifact }] },
       'refuse',
-      '1.1 has no documentType',
+      'a cosignature has at most one of selector and delegatedArtifact',
+    ),
+    envelope(
+      'cosignature-not-to-its-own-signer',
+      {
+        ...answerEnvelope,
+        cosignatures: [cosignatureOf(alice.statement, keys.signer, 'btps1', parties.filter(({ identity }) => identity !== ALICE))],
+      },
+      'refuse',
+      'its signer is one of its recipients',
     ),
   ];
 
   // A send's documentType against the receiver's grants.
-  const granted = (names) =>
-    trustRecord('accepted', { requested: [], granted: names, detailsHeld: [], detailsShared: [] });
+  const granted = (names) => trustRecord('accepted', { requested: [], granted: names, detailsHeld: [], detailsShared: [] });
   const documentType = [
-    {
-      name: 'agreement-granted',
-      artifact: send,
-      record: granted(['send:agreement']),
-      expect: 'accept',
-    },
+    { name: 'agreement-granted', artifact: send, record: granted(['send:agreement']), expect: 'accept' },
     {
       name: 'letter-granted-not-agreement',
       artifact: send,
@@ -3579,53 +3569,193 @@ export function agreements(keys) {
   ];
 
   const stamped = [
-    {
-      name: 'agreement',
-      artifact: { ...send, encryption: null, document: agreement },
-      expect: V12,
-    },
+    { name: 'agreement', artifact: { ...send, encryption: null, document: agreement }, expect: V12 },
     {
       name: 'answer',
-      artifact: transporter('BTPS_EVENT', '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3', {
+      artifact: transporter('BTPS_EVENT', sam.statement.artifactId, {
         from: SAM,
         to: BANK,
         relatesTo: 'agreement-copy-to-sam',
         encryption: null,
         document: answer('accepted', sam),
+        cosignatures: [sam.cosignature],
       }),
       expect: V12,
     },
   ];
 
-  // The rules between an opened answer, its agreement and the answers before it.
-  const answerFrom = (record, eventType = record.statement.decision) => ({
-    envelope: { from: record.statement.signer, to: BANK },
-    event: answer(eventType, record),
+  // Cosignatures as every BTPS server checks them on receipt, without decrypting: by the keys given.
+  const keyRow = (identity, key) => ({ identity, selector: 'btps1', publicKey: key.publicKeyPem });
+  const serverKeys = [
+    keyRow(BANK, keys.originator),
+    keyRow(ALICE, keys.signer),
+    keyRow(SAM, keys.guarantor),
+    keyRow(OPERATOR, keys.operator),
+  ];
+  const carried = (name, from, id, cosignatures, expect, why, more = {}) => ({
+    name,
+    artifact: transporter('BTPS_EVENT', id, { from, to: from === BANK ? ALICE : BANK, relatesTo: 'agreement-copy', cosignatures, ...more }),
+    keys: serverKeys,
+    expect,
+    ...(why && { why }),
   });
+  const forwardId = '6e7f8091-0213-4b4c-9d5e-6f708192a3b4';
+  const reSigned = (given, key) => {
+    const { signature: _drop, ...unsigned } = given.cosignature;
+    return { ...unsigned, signature: signatureBy(key, unsigned) };
+  };
+  const deviceDelegation = (() => {
+    const { delegation } = aliceByDevice.delegatedArtifact;
+    return delegation;
+  })();
+  // F4: the same device's older artifact, its delegation and all, paired with a fresh statement.
+  const olderArtifact = byDevice(stated(ALICE, 'accepted', at(1)), keys.device, undefined, uuidOf('an older artifact'));
+  const aliceFreshOnOlder = { ...aliceByDevice.asSent, delegatedArtifact: olderArtifact.delegatedArtifact };
+  const samSelfDelegated = byDevice(stated(SAM, 'accepted', at(3), undefined, anyRef), keys.device, { identity: SAM, key: keys.guarantor });
+  const wrongDevice = byDevice(stated(ALICE, 'accepted', at(2)), keys.guarantor);
+  const cosignatures = [
+    carried('answer-carrying-its-own', ALICE, alice.statement.artifactId, [alice.cosignature], 'accept'),
+    carried('forward-carrying-one', BANK, forwardId, [alice.cosignature], 'accept'),
+    carried('forward-carrying-the-whole-chain', BANK, forwardId, [alice.cosignature, sam.cosignature, bank.cosignature], 'accept'),
+    carried(
+      'device-answer-in-its-own-delegated-artifact',
+      ALICE,
+      aliceByDevice.statement.artifactId,
+      [aliceByDevice.asSent],
+      'accept',
+      undefined,
+      { delegation: deviceDelegation },
+    ),
+    carried(
+      'forward-carrying-a-device-signed-one',
+      BANK,
+      forwardId,
+      [aliceByDevice.cosignature, samAfterDevice.cosignature, bankAfterDevice.cosignature],
+      'accept',
+    ),
+    carried(
+      'altered-after-signing',
+      BANK,
+      forwardId,
+      [{ ...alice.cosignature, statementSha256: SHA }],
+      'refuse',
+      'a cosignature is signed by its signer',
+    ),
+    carried('signed-by-another-key', BANK, forwardId, [reSigned(alice, keys.guarantor)], 'refuse', 'a cosignature is signed by its signer'),
+    carried(
+      'answer-naming-another-artifact',
+      ALICE,
+      uuidOf('another artifact'),
+      [alice.cosignature],
+      'refuse',
+      "a signer's cosignature names the artifact that delivers it",
+    ),
+    carried(
+      'carried-by-someone-who-is-neither',
+      SAM,
+      forwardId,
+      [alice.cosignature],
+      'refuse',
+      "cosignatures are forwarded by their document's originator",
+    ),
+    carried('answer-carrying-another-signers-too', ALICE, alice.statement.artifactId, [alice.cosignature, sam.cosignature], 'refuse', "a signer's answer carries its own cosignature only"),
+    carried('a-signer-twice', BANK, forwardId, [alice.cosignature, alice.cosignature], 'refuse', 'a signer cosigns once'),
+    carried(
+      'about-two-documents',
+      BANK,
+      forwardId,
+      [alice.cosignature, byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef)).cosignature],
+      'refuse',
+      'cosignatures name one document',
+    ),
+    carried(
+      'a-chain-that-does-not-follow',
+      BANK,
+      forwardId,
+      [alice.cosignature, byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), SHA)).cosignature],
+      'refuse',
+      'a cosignature that names previous follows the one before it',
+    ),
+    carried(
+      'device-self-delegated-without-attestation',
+      BANK,
+      forwardId,
+      [samSelfDelegated.cosignature],
+      'refuse',
+      'a self-delegation carries an attestation',
+    ),
+    carried(
+      'device-signed-by-another-device',
+      BANK,
+      forwardId,
+      [wrongDevice.cosignature],
+      'refuse',
+      'a device cosignature came in an artifact its device signed',
+    ),
+    carried(
+      'device-fresh-statement-on-an-older-artifact',
+      BANK,
+      forwardId,
+      [aliceFreshOnOlder],
+      'refuse',
+      'a device cosignature names the delegated artifact that delivered it (a stolen device key cannot reuse an older one)',
+    ),
+  ];
+
+  // A cosignature opened by a recipient, with its key: exactly what was signed, or refused; nothing for anyone else.
+  const opener = (identity, key) => ({ identity, privateKey: key.privateKeyPem });
+  const copied = (() => {
+    const { signature: _drop, ...unsigned } = alice.cosignature;
+    const asOperator = { ...unsigned, signer: OPERATOR };
+    return { ...asOperator, signature: signatureBy(keys.operator, asOperator) };
+  })();
+  const wrappedWrongForSam = {
+    ...alice.cosignature,
+    recipients: alice.cosignature.recipients.map((one) =>
+      one.identity === SAM ? { ...one, wrappedKey: alice.cosignature.recipients.find((r) => r.identity === BANK).wrappedKey } : one,
+    ),
+  };
+  const opened = [
+    { name: 'opens-for-its-originator', cosignature: alice.cosignature, receiver: opener(BANK, keys.originator), expect: 'accept', statement: alice.statement },
+    { name: 'opens-for-a-later-signer', cosignature: alice.cosignature, receiver: opener(SAM, keys.guarantor), expect: 'accept', statement: alice.statement },
+    { name: 'not-for-someone-it-was-not-encrypted-to', cosignature: alice.cosignature, receiver: opener(OPERATOR, keys.operator), expect: 'not-a-recipient' },
+    {
+      name: 'copied-under-another-signers-name',
+      cosignature: copied,
+      receiver: opener(BANK, keys.originator),
+      expect: 'refuse',
+      why: "its statement is another signer's: every server takes its signature, its recipient refuses what it opens to",
+    },
+    {
+      name: 'wrapped-for-a-recipient-to-another-key',
+      cosignature: wrappedWrongForSam,
+      receiver: opener(SAM, keys.guarantor),
+      expect: 'refuse',
+      why: 'its content key does not open with the recipient key, and that recipient says so',
+    },
+  ];
+
+  // The rules between an opened answer, its agreement and the answers before it: the originator's platform's.
+  const answerFrom = (given, eventType = given.statement.decision) => ({
+    envelope: { from: given.statement.signer, to: BANK },
+    answer: { ...answer(eventType, given), cosignature: given.cosignature, statement: given.statement },
+  });
+  const earlierOf = (list) => list.map(({ cosignature, statement }) => ({ cosignature, statement }));
   const rule = (name, given, about, earlier, expect, why) => ({
     name,
     ...given,
     agreement: about,
-    earlier,
+    earlier: earlierOf(earlier),
     expect,
     ...(why && { why }),
   });
-  const withEnvelope = (given, change) => ({
-    ...given,
-    envelope: { ...given.envelope, ...change },
-  });
+  const withEnvelope = (given, change) => ({ ...given, envelope: { ...given.envelope, ...change } });
   const samFirst = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3)));
   const statements = [
     rule('first-signer-accepts', answerFrom(alice), agreement, [], 'accept'),
     rule('second-signer-names-the-first', answerFrom(sam), agreement, [alice], 'accept'),
     rule('first-signer-declines', answerFrom(aliceDeclines), agreement, [], 'accept'),
-    rule(
-      'second-signer-names-a-device-signed-first',
-      answerFrom(samAfterDevice),
-      agreement,
-      [aliceByDevice],
-      'accept',
-    ),
+    rule('second-signer-names-a-device-signed-first', answerFrom(samAfterDevice), agreement, [aliceByDevice], 'accept'),
     rule(
       'any-order-second-signer-first',
       answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef))),
@@ -3635,33 +3765,14 @@ export function agreements(keys) {
     ),
     rule(
       'not-a-signer',
-      answerFrom(
-        byIdentity(
-          keys.guarantor,
-          stated('eve$other.example', 'accepted', at(2), undefined, anyRef),
-        ),
-      ),
+      answerFrom(byIdentity(keys.guarantor, stated('eve$other.example', 'accepted', at(2), undefined, anyRef))),
       anyOrder,
       [],
       'refuse',
       'only a listed signer answers',
     ),
-    rule(
-      'sent-by-someone-else',
-      withEnvelope(answerFrom(alice), { from: SAM }),
-      agreement,
-      [],
-      'refuse',
-      'a statement is sent by its own signer',
-    ),
-    rule(
-      'out-of-turn',
-      answerFrom(samFirst),
-      agreement,
-      [],
-      'refuse',
-      'in a sequential agreement the signers answer in list order',
-    ),
+    rule('sent-by-someone-else', withEnvelope(answerFrom(alice), { from: SAM }), agreement, [], 'refuse', 'a statement is sent by its own signer'),
+    rule('out-of-turn', answerFrom(samFirst), agreement, [], 'refuse', 'in a sequential agreement the signers answer in list order'),
     rule(
       'later-signer-names-no-previous',
       answerFrom(samFirst),
@@ -3676,11 +3787,11 @@ export function agreements(keys) {
       agreement,
       [alice],
       'refuse',
-      'previous is the SHA-256 of the statement record before it',
+      'previous is the SHA-256 of the cosignature before it',
     ),
     rule(
       'any-order-names-a-previous',
-      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(alice), anyRef))),
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), chainHashOf(alice), anyRef))),
       anyOrder,
       [],
       'refuse',
@@ -3696,12 +3807,7 @@ export function agreements(keys) {
     ),
     rule(
       'another-content',
-      answerFrom(
-        byIdentity(
-          keys.signer,
-          stated(ALICE, 'accepted', at(2), undefined, { ...ref, contentSha256: SHA }),
-        ),
-      ),
+      answerFrom(byIdentity(keys.signer, stated(ALICE, 'accepted', at(2), undefined, { ...ref, contentSha256: SHA }))),
       agreement,
       [],
       'refuse',
@@ -3725,7 +3831,7 @@ export function agreements(keys) {
     ),
     rule(
       'after-a-decline',
-      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(aliceDeclines)))),
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), chainHashOf(aliceDeclines)))),
       agreement,
       [aliceDeclines],
       'refuse',
@@ -3733,10 +3839,10 @@ export function agreements(keys) {
     ),
     rule(
       'event-names-another-agreement',
-      {
-        ...answerFrom(alice),
-        event: { ...answer('accepted', alice), agreement: { ...ref, id: 'AGR-2' } },
-      },
+      (() => {
+        const given = answerFrom(alice);
+        return { ...given, answer: { ...given.answer, agreement: { ...ref, id: 'AGR-2' } } };
+      })(),
       agreement,
       [],
       'refuse',
@@ -3751,25 +3857,22 @@ export function agreements(keys) {
     publicKey: key.publicKeyPem,
     fingerprint: fingerprintOf(key.publicKeyPem),
   });
-  const allKeys = [
-    keyOf(BANK, keys.originator),
-    keyOf(ALICE, keys.signer),
-    keyOf(SAM, keys.guarantor),
-    keyOf(OPERATOR, keys.operator),
-  ];
-  const bundle = (statementRecords, about = agreement, bundleKeys = allKeys) => ({
+  const allKeys = [keyOf(BANK, keys.originator), keyOf(ALICE, keys.signer), keyOf(SAM, keys.guarantor), keyOf(OPERATOR, keys.operator)];
+  const bundle = (answers, about = agreement, bundleKeys = allKeys) => ({
     format: 'btps-evidence/1',
     originator: BANK,
     agreement: about,
-    statements: statementRecords,
+    cosignatures: answers.map(({ cosignature }) => cosignature),
+    statements: answers.map(({ text }) => text),
     keys: bundleKeys,
   });
-  const fact = (record, more = {}) => ({
-    signer: record.statement.signer,
-    decision: record.statement.decision,
+  const fact = (given, more = {}) => ({
+    signer: given.statement.signer,
+    decision: given.statement.decision,
     signatureValid: true,
-    keyKind: record.delegatedArtifact ? 'device' : 'identity',
-    ...(record.delegatedArtifact && { delegatedBy: OPERATOR }),
+    keyKind: given.cosignature.delegatedArtifact ? 'device' : 'identity',
+    ...(given.cosignature.delegatedArtifact && { delegatedBy: OPERATOR }),
+    statementMatches: true,
     agreementMatches: true,
     termsMatch: true,
     withinDeadline: true,
@@ -3777,8 +3880,7 @@ export function agreements(keys) {
     ...more,
   });
   // The content is the agreement without its originator's signature.
-  const contentHashOf = (about) =>
-    hashOf(Object.fromEntries(Object.entries(about).filter(([k]) => k !== 'originatorSignature')));
+  const contentHashOf = (about) => hashOf(Object.fromEntries(Object.entries(about).filter(([k]) => k !== 'originatorSignature')));
   const verdictless = (about, statementFacts, more = {}) => ({
     contentSha256: contentHashOf(about),
     originatorSignatureValid: true,
@@ -3789,20 +3891,12 @@ export function agreements(keys) {
   });
   const evidence = (name, given, expect) => ({ name, bundle: given, expect });
   const changedBody = { ...agreement, body: note('# Home loan\n\nThe rate is 2.1% p.a.') };
-  const tamperedSam = { ...sam, statement: { ...sam.statement, signedAt: at(5) } };
-  const wrongDevice = byDevice(stated(ALICE, 'accepted', at(2)), keys.guarantor);
-  const misattached = signed(
-    contentOf(
-      {},
-      { attachments: [{ ...terms, content: Buffer.from('other').toString('base64') }] },
-    ),
-  );
+  // Sam's statement, its text changed after he signed: its cosignature still holds, the text does not.
+  const tamperedSam = { ...sam, text: statementText({ ...sam.statement, signedAt: at(5) }) };
+  const misattached = signed(contentOf({}, { attachments: [{ ...terms, content: Buffer.from('other').toString('base64') }] }));
   const late = byIdentity(keys.signer, stated(ALICE, 'accepted', '2026-12-01T00:00:00.000Z'));
-  const samSelfDelegated = byDevice(
-    stated(SAM, 'accepted', at(3), undefined, anyRef),
-    keys.device,
-    { identity: SAM, key: keys.guarantor },
-  );
+  const samAny = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef));
+  const aliceAny = byIdentity(keys.signer, stated(ALICE, 'accepted', at(4), undefined, anyRef));
   const bundles = [
     evidence(
       'complete-sequential-with-identity-keys',
@@ -3812,102 +3906,62 @@ export function agreements(keys) {
     evidence(
       'complete-with-a-device-signed-acceptance',
       bundle([aliceByDevice, samAfterDevice, bankAfterDevice]),
-      verdictless(agreement, [fact(aliceByDevice), fact(samAfterDevice), fact(bankAfterDevice)], {
-        complete: true,
-      }),
+      verdictless(agreement, [fact(aliceByDevice), fact(samAfterDevice), fact(bankAfterDevice)], { complete: true }),
     ),
-    evidence(
-      'complete-in-any-order',
-      bundle(
-        [
-          byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef)),
-          byIdentity(keys.signer, stated(ALICE, 'accepted', at(4), undefined, anyRef)),
-        ],
-        anyOrder,
-      ),
-      verdictless(
-        anyOrder,
-        [
-          fact(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef))),
-          fact(byIdentity(keys.signer, stated(ALICE, 'accepted', at(4), undefined, anyRef))),
-        ],
-        { complete: true },
-      ),
-    ),
+    evidence('complete-in-any-order', bundle([samAny, aliceAny], anyOrder), verdictless(anyOrder, [fact(samAny), fact(aliceAny)], { complete: true })),
     evidence('declined', bundle([aliceDeclines]), verdictless(agreement, [fact(aliceDeclines)])),
-    evidence(
-      'waiting-for-the-last-signer',
-      bundle([alice, sam]),
-      verdictless(agreement, [fact(alice), fact(sam)]),
-    ),
+    evidence('waiting-for-the-last-signer', bundle([alice, sam]), verdictless(agreement, [fact(alice), fact(sam)])),
     evidence(
       'content-changed-after-signing',
       bundle([alice, sam, bank], changedBody),
       verdictless(
         changedBody,
-        [alice, sam, bank].map((r) => fact(r, { agreementMatches: false })),
+        [alice, sam, bank].map((given) => fact(given, { agreementMatches: false })),
         { originatorSignatureValid: false },
       ),
     ),
+    // Its signature still holds; its text does not: nothing of what the text says is reported.
     evidence(
       'statement-changed-after-signing',
       bundle([alice, tamperedSam, bank]),
       verdictless(agreement, [
         fact(alice),
-        fact(tamperedSam, { signatureValid: false }),
-        fact(bank, { inOrder: false }),
+        (({ decision: _decision, ...rest }) => rest)(
+          fact(tamperedSam, { statementMatches: false, termsMatch: false, withinDeadline: false }),
+        ),
+        fact(bank),
       ]),
     ),
-    evidence(
-      'statement-signed-by-another-device',
-      bundle([wrongDevice]),
-      verdictless(agreement, [fact(wrongDevice, { signatureValid: false })]),
-    ),
-    evidence(
-      'out-of-turn',
-      bundle([samFirst]),
-      verdictless(agreement, [fact(samFirst, { inOrder: false })]),
-    ),
-    evidence(
-      'after-the-deadline',
-      bundle([late]),
-      verdictless(agreement, [fact(late, { withinDeadline: false })]),
-    ),
-    evidence(
-      'a-term-that-is-not-its-attachment',
-      bundle([], misattached),
-      verdictless(misattached, [], { termsAttached: false }),
-    ),
+    evidence('statement-signed-by-another-device', bundle([wrongDevice]), verdictless(agreement, [fact(wrongDevice, { signatureValid: false })])),
+    evidence('out-of-turn', bundle([samFirst]), verdictless(agreement, [fact(samFirst, { inOrder: false })])),
+    evidence('after-the-deadline', bundle([late]), verdictless(agreement, [fact(late, { withinDeadline: false })])),
+    evidence('a-term-that-is-not-its-attachment', bundle([], misattached), verdictless(misattached, [], { termsAttached: false })),
     evidence(
       'a-signer-key-left-out',
-      bundle(
-        [alice],
-        agreement,
-        allKeys.filter((k) => k.identity !== ALICE),
-      ),
+      bundle([alice], agreement, allKeys.filter((k) => k.identity !== ALICE)),
       verdictless(agreement, [fact(alice, { signatureValid: false })]),
     ),
     // A delegation the signer signed for itself must be attested by its operator, as a server requires.
     evidence(
       'a-self-delegated-device-without-attestation',
-      bundle([samSelfDelegated], anyOrder, [
-        keyOf(BANK, keys.originator),
-        keyOf(SAM, keys.guarantor),
-      ]),
+      bundle([samSelfDelegated], anyOrder, [keyOf(BANK, keys.originator), keyOf(SAM, keys.guarantor)]),
       verdictless(anyOrder, [fact(samSelfDelegated, { signatureValid: false, delegatedBy: SAM })]),
     ),
   ];
 
   return {
     description:
-      "BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record's RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`event`, sent from `envelope.from` to `envelope.to`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+      "BTPS 1.2 agreements, with their cosignatures. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `cosigned` are a cosignature's opened statements, `{ statement, padding }`, held to the statement's own rules. `envelopes` are transporter artifacts as a server reads them, unopened. `cosignatures` are events carrying cosignatures, as every BTPS server checks them on receipt without decrypting, by the public keys given (`keys`, by identity and selector). `opened` is a cosignature opened by a recipient with its private key (`receiver`): `accept` opens to `statement` exactly, `refuse` is refused, `not-a-recipient` is not for it. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `cosignatureSha256` is the SHA-256 of a cosignature's RFC 8785 form, signature included, without a device's delegated artifact, which the next names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`answer`, its cosignature and opened statement, sent from `envelope.from` to `envelope.to`), its `agreement`, and the answers already taken (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
     documents,
     events,
+    cosigned,
     envelopes,
+    cosignatures,
+    opened,
     documentType,
     stamped,
     contentSha256: { document: agreement, sha256: ref.contentSha256 },
-    statementSha256: { record: alice, sha256: hashOf(alice) },
+    cosignatureSha256: { cosignature: alice.cosignature, sha256: chainHashOf(alice) },
     statements,
     bundles,
   };
@@ -3920,7 +3974,7 @@ export function agreements(keys) {
  * fingerprint is its own; a device signs with its delegation's `agentPubKey`.
  */
 export function withKeyFacts(c) {
-  const { keys, originator, agreement, statements } = c.bundle;
+  const { keys, originator, agreement, cosignatures } = c.bundle;
   const keyFact = (identity, selector) => {
     const key = keys.find(
       (k) =>
@@ -3937,15 +3991,15 @@ export function withKeyFacts(c) {
       originatorKey: keyFact(originator, agreement.originatorSignature.selector),
       keysConfirmedOnline: false,
       statements: c.expect.statements.map((fact, i) => {
-        const record = statements[i];
-        if (!record.delegatedArtifact) {
-          return { ...fact, key: keyFact(record.statement.signer, record.selector) };
+        const cosignature = cosignatures[i];
+        if (!cosignature.delegatedArtifact) {
+          return { ...fact, key: keyFact(cosignature.signer, cosignature.selector) };
         }
-        const { delegation } = record.delegatedArtifact;
+        const { delegation } = cosignature.delegatedArtifact;
         return {
           ...fact,
           key: {
-            identity: record.statement.signer,
+            identity: cosignature.signer,
             fingerprint: fingerprintOf(delegation.agentPubKey),
           },
           delegationKey: keyFact(delegation.signedBy, delegation.selector),
@@ -4078,7 +4132,10 @@ export async function agreementTimestamps(set) {
   };
 
   const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
-  const [first, second] = base.bundle.statements.map((record) => hashOf(record));
+  // A timestamp is over a cosignature's hash, the one the next names as previous.
+  const chainHash = (cosignature) =>
+    hashOf(Object.fromEntries(Object.entries(cosignature).filter(([k]) => k !== 'delegatedArtifact')));
+  const [first, second] = base.bundle.cosignatures.map(chainHash);
   const timestamp = (imprintMatches, byAuthority) => ({
     imprintMatches,
     signatureValid: true,
@@ -4090,7 +4147,7 @@ export async function agreementTimestamps(set) {
   // The first statement timestamped; its facts gain `timestamp`, and nothing else changes.
   const timestamped = (name, token, imprintMatches, byAuthority = true) => ({
     name,
-    bundle: { ...base.bundle, timestamps: [{ statementSha256: first, token }] },
+    bundle: { ...base.bundle, timestamps: [{ cosignatureSha256: first, token }] },
     options: { trustedTimestampRoots: [pemOf(root)] },
     expect: {
       ...base.expect,
@@ -4163,7 +4220,7 @@ export function agreementKeyChains(set, keys) {
   };
 
   const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
-  const [, samRecord] = base.bundle.statements;
+  const [, samCosignature] = base.bundle.cosignatures;
   // A signing key against its chain, each fact as the spec's "In an evidence bundle" defines it.
   const chainFacts = (next, more) => ({
     chainValid: true,
@@ -4212,7 +4269,7 @@ export function agreementKeyChains(set, keys) {
   // The bank's platform received the guarantor's statement on the 3rd, and signed that then.
   const arrival = (arrivedAt) => {
     const unsigned = {
-      statementSha256: hashOf(samRecord),
+      cosignatureSha256: hashOf(samCosignature),
       arrivedAt,
       receivedBy: BANK,
       selector: 'btps1',

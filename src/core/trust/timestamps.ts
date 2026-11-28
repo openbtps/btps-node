@@ -7,8 +7,8 @@
 
 /*
  * Since 1.2: RFC 3161 trusted timestamps on an agreement's statements. A
- * provider asks a timestamp authority to sign the SHA-256 of a statement
- * record, and only that hash leaves it, never the content. A token proves the
+ * provider asks a timestamp authority to sign the SHA-256 of a cosignature
+ * (cosignatureSha256), and only that hash leaves it, never the content. A token proves the
  * statement existed by its time, so it cannot be made later and backdated,
  * and keeps proving it after the signer's key rotates. Which authorities to
  * trust is each platform's choice; BTPS reports facts.
@@ -17,8 +17,8 @@
 import crypto from 'crypto';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
-import { statementRecordSha256 } from './agreements.js';
-import type { BTPStatementRecord } from './types.js';
+import { cosignatureSha256 } from './cosignatures.js';
+import type { BTPCosignature } from './types.js';
 
 const SHA256 = '2.16.840.1.101.3.4.2.1';
 const TST_INFO = '1.2.840.113549.1.9.16.1.4';
@@ -34,7 +34,7 @@ const HASHES: Record<string, string> = {
 
 /** Since 1.2: what a timestamp token shows about the statement it is for. */
 export type BTPTimestampFacts = {
-  /** The token's message imprint is the SHA-256 of this statement record */
+  /** The token's message imprint is the SHA-256 of this cosignature */
   imprintMatches: boolean;
   /** The token is signed by the certificate it carries */
   signatureValid: boolean;
@@ -61,12 +61,12 @@ const derOfPem = (pem: string) =>
 
 /**
  * Since 1.2: an RFC 3161 TimeStampReq, DER encoded, for the SHA-256 of a
- * statement record, asking for the authority's certificate in the reply. A
+ * cosignature (cosignatureSha256), asking for the authority's certificate in the reply. A
  * platform sends it to the authority of its choice
  * (`Content-Type: application/timestamp-query`).
  */
 export const timestampRequest = async (
-  record: BTPStatementRecord,
+  cosignature: BTPCosignature,
   options: { nonce?: number } = {},
 ): Promise<Uint8Array> => {
   const { asn1js, pkijs } = await libraries();
@@ -75,7 +75,7 @@ export const timestampRequest = async (
     messageImprint: new pkijs.MessageImprint({
       hashAlgorithm: new pkijs.AlgorithmIdentifier({ algorithmId: SHA256 }),
       hashedMessage: new asn1js.OctetString({
-        valueHex: Buffer.from(statementRecordSha256(record), 'hex'),
+        valueHex: Buffer.from(cosignatureSha256(cosignature), 'hex'),
       }),
     }),
     certReq: true,
@@ -102,7 +102,7 @@ export const timestampTokenOf = async (response: Uint8Array): Promise<string> =>
 };
 
 /**
- * Since 1.2: the facts of a timestamp token, base64, for the statement record
+ * Since 1.2: the facts of a timestamp token, base64, for the cosignature
  * whose SHA-256 is `statementSha256`. With `trustedRoots` (PEM certificates),
  * it also says whether the authority's certificate chains to one of them;
  * without, `trusted` is left out. It refuses nothing.

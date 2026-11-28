@@ -348,10 +348,19 @@ if (!error && version.startsWith('1.1.')) {
 ### resolveIdentity
 
 ```ts
-await client.resolveIdentity(identity: string, from: string, receiverKey?: BTPDecryptionKey)
+await client.resolveIdentity(
+  identity: string,
+  from: string,
+  receiverKey?: BTPDecryptionKey,
+  identitySelector?: string, // since 1.2
+)
 ```
 
-An identity's public key, to encrypt to: from the `keyResolver` when given (else DNS), and when neither has it, from the identity's host, in an answer signed by its domain's operator (`op=`). Since 1.2 the lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses the version; a `1.2.0` answer must answer this lookup, be fresh and name the identity. `receiverKey` (a PEM private key or a `Decrypter`) opens an encrypted answer.
+An identity's public key: from the `keyResolver` when given (else DNS), and when neither has it, from the identity's host, in an answer signed by its domain's operator (`op=`). Since 1.2 the lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses the version; a `1.2.0` answer must answer this lookup, be fresh and name the identity. `receiverKey` (a PEM private key or a `Decrypter`) opens an encrypted answer.
+
+- **identitySelector** (since 1.2, optional): the identity's key at this selector, not at its domain's `s=`, as a signature names its key. It is used for DNS and the resolver, and sent as the lookup's `identitySelector`. Without it, the key to encrypt to, at `s=`. `createDefaultKeyResolver` passes the signature's selector here for `verify`, and takes the answer only when its `selector` is that selector.
+- A DNS failure other than "no such record" is returned as the error, and the host is not asked.
+- The domain's operator is never asked of its host: its key is found in DNS only, and an operator not in DNS is `BTP_ERROR_IDENTITY_NOT_FOUND` ("whose key is found in DNS only").
 
 - **Returns**: `Promise<{ response: BTPIdentityResDoc & { hostname; port; version; serverVersion? }; error: undefined } | { response: undefined; error: BTPErrorException }>`. `serverVersion` (since 1.2) is the version the host's server speaks, when the host answered.
 
@@ -520,10 +529,10 @@ const eventRes = await agent.command(
 await agent.openResult(entry);
 ```
 
-Since 1.2. Opens an encrypted query result with this device's own key, through the `agentKey` its provider wrapped for it (`wrapForAgent`).
+Since 1.2. Opens an encrypted query result with this device's own key, through the `agentKey` its provider wrapped for it (`wrapForAgent`). Since 1.2, it also opens the statements in the artifact's [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures) through `agentKey.cosignatureKeys`, and takes an unencrypted artifact when its `agentKey` has `cosignatureKeys`.
 
 - It refuses an `agentKey` wrapped to a key other than the one this device holds, before anything is looked up: that is a device that has not finished moving to a new key.
-- It then checks who signed the artifact as sent, exactly as a server does on arrival (`verifyTransporterSignature`): the sender's own key, or, for an artifact sent through a delegation, the delegation, its attestation, and the delegated agent's signature. Then it decrypts and checks the document as `decryptVerify` does.
+- It then checks who signed the artifact as sent, with the signature steps a server runs on arrival (`verifyTransporterSignature`): the sender's own key, or, for an artifact sent through a delegation, the delegation, its attestation, and the delegated agent's signature. Each key is found as a server finds it: from the agent's `keyResolver`; given none, from DNS, then, when DNS has no record for it, from the signer's host, at the signature's selector, asking as the agent's own identity (`to`). So a document from a hosted sender, whose key is not in DNS, opens. Unlike a server, it checks no key chain (it passes no `keyChains`): a key rotated away or expired is refused only once DNS or the host no longer gives it ([Checking keys on arrival](../protocol/specifications/key-rotation.md#checking-keys-on-arrival)). Then it decrypts and checks the document as `decryptVerify` does, passing `agentKey.key` and `agentKey.cosignatureKeys`: the opened statements are in the result's `cosigned`. A cosignature addressed to the identity with no key for it is refused (`BTP_ERROR_SIG_VERIFICATION`).
 
 - **entry**: [BTPQueryResultEntry](./typesAndInterfaces.md#btpqueryresultentry) – A result with `agentKey`
 - **Returns**: `Promise<BTPCryptoResponse<BTPDocType | string>>` – The artifact with its document decrypted, or the error

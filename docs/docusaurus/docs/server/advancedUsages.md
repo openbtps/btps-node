@@ -476,7 +476,8 @@ Since 1.2, every key lookup goes through one option, `keyResolver`: the server c
 import { createDefaultKeyResolver } from '@btps/sdk/crypto';
 import { BtpsServer } from '@btps/sdk/server';
 
-const lookup = createDefaultKeyResolver();
+// Your server's own identity: a key not in DNS is asked of its host as this.
+const lookup = createDefaultKeyResolver({ from: options.serverIdentity.identity });
 const cache = new Map(); // in production, a shared store such as Redis
 const TTL_MS = 5 * 60 * 1000;
 
@@ -495,7 +496,7 @@ const keyResolver = {
 const server = new BtpsServer({ ...options, keyResolver });
 ```
 
-`use` says what the key is for: `verify`, a signature key, looked up in DNS only; or `encrypt`, a receiver's key, looked up in DNS and then from the receiver's host. Keep the time to live short: a provider rotates a key by publishing a new selector, and a removed key should stop verifying soon after. A key's selector is never reused for a different key, so a cached key is never the wrong one for its selector.
+`use` says what the key is for: `verify`, a signature key, at the selector the signature names; or `encrypt`, a receiver's key. Given `from`, the default lookup finds both the same way: in DNS, then, only when DNS has no record for the key, from the identity's host, in an answer its domain's operator signed. Without `from`, it looks in DNS only, and a server given that resolver refuses a signature by a hosted identity, whose key is not in DNS (`BTP_ERROR_RESOLVE_PUBKEY`). See [Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key). Keep the time to live short: a provider rotates a key by publishing a new selector, and a removed key should stop verifying soon after. A key's selector is never reused for a different key, so a cached key is never the wrong one for its selector.
 
 ## Security Best Practices
 

@@ -34,13 +34,32 @@ describe('the evidence bundle format', () => {
     expect(BtpEvidenceBundleSchema.safeParse(bundle).success).toBe(true);
   });
 
-  it('refuses one of another format, one without its originator, and a record signed both ways', () => {
+  it('refuses one of another format, one without its originator, and a cosignature signed both ways', () => {
     const [first] = bundles;
     const bundle = first?.bundle ?? {};
-    const statements = bundle.statements as { selector?: string }[];
+    const cosignatures = bundle.cosignatures as {
+      selector?: string;
+      signature: { value: string };
+    }[];
     const bothWays = {
       ...bundle,
-      statements: [{ ...statements[0], delegatedArtifact: { from: 'a$b.example' } }],
+      cosignatures: [
+        {
+          ...cosignatures[0],
+          delegatedArtifact: {
+            id: '00000000-0000-4000-8000-000000000001',
+            from: 'a$b.example',
+            signature: cosignatures[0]!.signature,
+            delegation: {
+              agentPubKey: 'k',
+              signedBy: 'a$b.example',
+              selector: 'btps1',
+              signature: cosignatures[0]!.signature,
+            },
+          },
+        },
+        ...cosignatures.slice(1),
+      ],
     };
     for (const wrong of [
       { ...bundle, format: 'btps-evidence/2' },

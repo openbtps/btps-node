@@ -12,6 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { generateKeyPairSync } from 'crypto';
+import { cosign } from '../../trust/cosignatures.js';
 import { BtpsAgentCommandCallSchema } from '../../../client/libs/schema.js';
 import { artifactVersion } from '../constants/index.js';
 import { decryptedDocumentProblem } from './helpers.js';
@@ -19,23 +21,13 @@ import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
 
 const SHA = 'a'.repeat(64);
 const agreement = { originator: 'loans$bank.example', id: 'AGR-1', contentSha256: SHA };
+// Its statement is not in it but outside, as the artifact's cosignature.
 const answer = {
   type: 'agreement_event',
   id: '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3',
   occurredAt: '2026-11-02T00:00:00.000Z',
   eventType: 'accepted',
   agreement,
-  statement: {
-    statement: {
-      agreement,
-      terms: [],
-      signer: 'alice$client.example',
-      decision: 'accepted',
-      signedAt: '2026-11-02T00:00:00.000Z',
-    },
-    selector: 'btps1',
-    signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
-  },
 };
 
 describe("an agreement's answer, sent by a device", () => {
@@ -51,6 +43,43 @@ describe("an agreement's answer, sent by a device", () => {
 
   it('stamps its artifact 1.2.0 by its document', () => {
     expect(artifactVersion({ type: 'BTPS_EVENT', document: answer })).toBe('1.2.0');
+  });
+
+  it('carries cosignatures as any sender may, its own or those an originator forwards, on event.send only', async () => {
+    const keys = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const cosignatureOf = (signer: string) =>
+      cosign({
+        statement: {
+          agreement,
+          terms: [SHA],
+          signer,
+          artifactId: answer.id,
+          decision: 'accepted',
+          signedAt: '2026-11-02T00:00:00.000Z',
+        },
+        recipients: [agreement.originator, signer].map((identity) => ({
+          identity,
+          publicKey: keys.publicKey,
+        })),
+        by: { pemFiles: keys },
+      });
+    const own = await cosignatureOf('alice$client.example');
+    const forwarded = [own, await cosignatureOf('sam$client.example')];
+    const command = (actionType: string, cosignatures: unknown[]) =>
+      BtpsAgentCommandCallSchema.safeParse({
+        actionType,
+        to: 'loans$bank.example',
+        document: answer,
+        options: { relatesTo: 'agreement-copy', cosignatures },
+      }).success;
+
+    expect(command('event.send', [own])).toBe(true);
+    expect(command('event.send', forwarded)).toBe(true);
+    expect(command('artifact.send', [own])).toBe(false);
   });
 });
 

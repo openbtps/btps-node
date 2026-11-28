@@ -21,6 +21,12 @@ import { BtpsAgent } from '../../src/client/btpsAgent.js';
 import { BtpsDelegator } from '../../src/core/delegation/BtpsDelegator.js';
 import { PemDecrypter } from '../../src/core/crypto/pem-decrypter.js';
 import { syncOfArtifact } from '../../src/core/crypto/index.js';
+import { randomBytes, randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
+import { cosign } from '../../src/core/trust/cosignatures.js';
+import type { BTPAgreementStatement } from '../../src/core/trust/types.js';
 import { computeAgentTrustId } from '../../src/core/trust/trustUtils.js';
 import { wrapForAgent } from '../../src/server/libs/wrapForAgent.js';
 import { AGENT_TRANSPORTER_ACTIONS } from '../../src/core/server/constants/index.js';
@@ -38,6 +44,7 @@ import {
   invoiceDocument,
   letterDocument,
   newKeys,
+  open,
   payslipDocument,
   receiptDocument,
   recordTrust,
@@ -51,6 +58,13 @@ import {
 vi.mock('dns/promises', async () => (await import('./zone.js')).dnsModule);
 
 const agentOptions = { btpMtsOptions: senderTls, maxRetries: 0 };
+
+// An agreement known to be valid: the golden vectors'.
+const vectorAgreement = (
+  JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, '../../test/vectors/agreements.vectors.json'), 'utf8'),
+  ) as { documents: { name: string; expect: string; document: Record<string, unknown> }[] }
+).documents.find((c) => c.name === 'agreement' && c.expect === 'accept')!.document;
 
 const phone = (id: string, keys: Keys, identity: string) =>
   new BtpsAgent({
@@ -135,7 +149,7 @@ describe('journey: a user registers a phone', () => {
           host.inbox
             .filter((received) => received.to === user.identity)
             .map(async (received) =>
-              received.encryption && device
+              (received.encryption || received.cosignatures) && device
                 ? {
                     artifact: received,
                     agentKey: await wrapForAgent(received, identityDecrypter, device),
@@ -377,6 +391,27 @@ describe('journey: a user registers a phone', () => {
     expect(withAnotherKey.error).toBeDefined();
   });
 
+  it("opens what a hosted sender, with no key in DNS, sent: the phone finds the sender's key from its host", async () => {
+    const hosted = await addUser(elsewhere, 'hosted', 'host');
+    await recordTrust(host.trustStore, hosted.identity, user.identity, 'accepted');
+    const document = invoiceDocument({ id: 'INV-HOSTED-TO-PHONE' });
+    const arrived = await artifactFrom(hosted, user.identity, 'BTPS_DOC', document);
+    expect((await deliver(arrived)).response?.status.ok).toBe(true);
+
+    const { response } = await phone(agentId, deviceKeys, user.identity).command(
+      'inbox.fetch',
+      user.identity,
+      { limit: 50 },
+    );
+    const entry = (
+      response?.document as { results: { artifact: BTPTransporterArtifact }[] }
+    ).results.find((result) => result.artifact.id === arrived.id)!;
+    const opened = await phone(agentId, deviceKeys, user.identity).openResult(entry as never);
+
+    expect(opened.error).toBeUndefined();
+    expect(opened.payload?.document).toEqual(document);
+  });
+
   it("keeps a send's sync from the phone, and refuses one sent to the provider directly", async () => {
     const original = sent.at(-1)!;
     const syncOf = syncOfArtifact(original);
@@ -395,6 +430,116 @@ describe('journey: a user registers a phone', () => {
     expect(viaPhone.response?.status).toMatchObject({ ok: true, code: 200 });
     await vi.waitFor(() => expect(synced.map((s) => s.syncOf)).toContainEqual(syncOf));
     expect(refused?.status).toMatchObject({ ok: false, error: BTP_ERROR_SYNC_NOT_ALLOWED.code });
+  });
+
+  it("answers an agreement with the phone's own cosignature, checked in flight, and opens it again when the originator forwards it", async () => {
+    // Bob, at another provider, asks Alice to sign.
+    const { originatorSignature: _unsigned, ...content } = vectorAgreement;
+    const agreement = await signAgreement(
+      {
+        ...content,
+        id: 'AGR-PHONE',
+        salt: randomBytes(32).toString('base64'),
+        acceptance: {
+          ...(content.acceptance as object),
+          signers: [{ address: user.identity }],
+          signingOrder: 'any',
+        },
+      } as Parameters<typeof signAgreement>[0],
+      { originator: receiver.identity, selector: receiver.selector, pemFiles: receiver.keys },
+    );
+    const copy = await artifactFrom(receiver, user.identity, 'BTPS_DOC', agreement);
+    elsewhere.trustStore.remember(copy);
+    host.trustStore.remember(copy);
+    const parties = [receiver, user].map((party) => ({
+      identity: party.identity,
+      publicKey: party.keys.publicKey,
+    }));
+    const event = (id: string, eventType: string) => ({
+      type: 'agreement_event',
+      id,
+      occurredAt: new Date().toISOString(),
+      eventType,
+      agreement: agreementRef(agreement, receiver.identity),
+    });
+
+    // The phone signs its statement with its device key and sends it; its provider delegates it.
+    const id = randomUUID();
+    const statement: BTPAgreementStatement = {
+      agreement: agreementRef(agreement, receiver.identity),
+      terms: (agreement.acceptance as { terms: string[] }).terms,
+      signer: user.identity,
+      artifactId: id,
+      decision: 'accepted',
+      signedAt: new Date().toISOString(),
+    };
+    const own = await cosign({ statement, recipients: parties, by: { pemFiles: deviceKeys } });
+    // Its statement signed by a key that is not the phone's: the receiving server refuses it.
+    const forgedId = randomUUID();
+    const forged = await cosign({
+      statement: { ...statement, artifactId: forgedId },
+      recipients: parties,
+      by: { pemFiles: newKeys() },
+    });
+    await phone(agentId, deviceKeys, user.identity).command(
+      'event.send',
+      receiver.identity,
+      event(forgedId, 'accepted') as unknown as BTPDocument,
+      { relatesTo: copy.id, cosignatures: [forged] },
+    );
+    const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
+      'event.send',
+      receiver.identity,
+      event(id, 'accepted') as unknown as BTPDocument,
+      { relatesTo: copy.id, cosignatures: [own] },
+    );
+
+    expect(error).toBeUndefined();
+    expect(response?.status).toMatchObject({ ok: true, code: 200 });
+    const answer = await vi.waitFor(
+      () => {
+        const found = elsewhere.inbox.find((a) => a.id === id);
+        expect(found).toBeDefined();
+        return found!;
+      },
+      { timeout: 10000 },
+    );
+    const bobOpened = await open(receiver, answer);
+    expect(bobOpened.error).toBeUndefined();
+    expect(bobOpened.cosigned).toEqual([statement]);
+    // Sent first, so had it been taken it would be here by now.
+    expect(elsewhere.inbox.some((a) => a.id === forgedId)).toBe(false);
+
+    // Bob forwards it to Alice; the phone opens it with the key its provider wraps for it.
+    const completeId = randomUUID();
+    // The phone's artifact as it arrived: its device signed all of it.
+    const forwarded = { ...own, delegatedArtifact: answer };
+    const complete = await artifactFrom(
+      receiver,
+      user.identity,
+      'BTPS_EVENT',
+      event(completeId, 'agreement_complete'),
+      {
+        extra: { id: completeId, relatesTo: copy.id, cosignatures: [forwarded] },
+      },
+    );
+    expect((await deliver(complete)).response?.status).toMatchObject({ ok: true, code: 200 });
+
+    const { response: inbox } = await phone(agentId, deviceKeys, user.identity).command(
+      'inbox.fetch',
+      user.identity,
+      { limit: 50 },
+    );
+    const entry = (
+      inbox?.document as {
+        results: { artifact: BTPTransporterArtifact; agentKey?: { cosignatureKeys?: unknown[] } }[];
+      }
+    ).results.find((result) => result.artifact.id === completeId)!;
+    const opened = await phone(agentId, deviceKeys, user.identity).openResult(entry as never);
+
+    expect(entry.agentKey?.cosignatureKeys).toHaveLength(1);
+    expect(opened.error).toBeUndefined();
+    expect(opened.cosigned).toEqual([statement]);
   });
 
   it("reads its sentbox with the provider's own record of each delivery", async () => {

@@ -76,6 +76,7 @@ if (result.error) {
 | `given`           | `BTPDetailPermission[]`              | `trust.request`                                    | Since 1.2: the `detail:` names of the details the user gives; their values go in the document                                                                     |
 | `change`          | `true`                               | `trust.request`                                    | Since 1.2: a change to an active trust, asking for the whole set now wanted                                                                                       |
 | `granted`         | `BTPPermissionName[]`                | `trust.respond`                                    | Since 1.2, only when accepting: the permission names granted. Comes with `entityType`                                                                             |
+| `cosignatures`    | `BTPCosignature[]`                   | `event.send`                                       | Since 1.2: the cosignatures the event carries on its envelope, 1 to 20 (see [Agreements](../../features/agreements.md#a-signer-answers))                          |
 | `entityType`      | `'person'` or `'organisation'`       | `trust.request`, `trust.respond`                   | Since 1.2: what owns the user's address                                                                                                                           |
 | `versionFallback` | `boolean`                            | `trust.request` with `permissions`                 | Since 1.2: to a receiver whose server speaks 1.1, send as 1.1 allows (the default), or refuse with its version (`false`)                                          |
 
@@ -587,7 +588,37 @@ const result = await agent.command('event.send', 'billing$acme.com', event, {
 });
 ```
 
-Since 1.2, a signer's answer to an agreement travels the same way: an `agreement_event` carrying the signed statement, with `relatesTo` the id of the artifact that delivered the signer's copy. See [Agreements](../../features/agreements.md).
+Since 1.2, a signer's answer to an agreement is an `agreement_event`, with `relatesTo` the id of the artifact that delivered the signer's copy. Since 1.2, its signed statement is not in the event: it travels on the artifact's envelope, as its `cosignatures`, which `event.send` takes as `options.cosignatures`. A device answers with its own cosignature, made with `cosign` and its device key (no `selector`), whose statement's `artifactId` is the event's `id`. When the device's user is an agreement's originator, `options.cosignatures` carries those it forwards (a device's with its `delegatedArtifact`). The receiving server checks them as it checks any sender's. See [Agreements](../../features/agreements.md#an-answer).
+
+```js
+import { cosign } from '@btps/sdk/trust';
+
+const id = crypto.randomUUID(); // the event's id, and the statement's artifactId
+const cosignature = await cosign({
+  statement: { ...statement, artifactId: id }, // the signer's statement, as on Agreements
+  recipients, // the originator and every signer: { identity, publicKey }
+  by: { signer: deviceKeystoreSigner }, // the device's key, no selector
+});
+
+await agent.command(
+  'event.send',
+  'loans$bank.example',
+  {
+    type: 'agreement_event',
+    id,
+    occurredAt: new Date().toISOString(),
+    eventType: 'accepted',
+    agreement: statement.agreement,
+  },
+  {
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    relatesTo: agreementCopyId,
+    id,
+    cosignatures: [cosignature],
+  },
+);
+```
 
 ---
 
@@ -1364,7 +1395,7 @@ openResult(entry: BTPQueryResultEntry): Promise<BTPCryptoResponse<BTPDocType | s
 ```
 
 **Description:**
-Since 1.2, opens an encrypted entry of a fetch result with the device's own key, through the `agentKey` its provider wrapped for this device. It is a method of the agent, not a command: nothing is sent. Who signed the artifact is checked as a server checks it on arrival, delegation and attestation included, and the opened document as any decrypted one is.
+Since 1.2, opens an encrypted entry of a fetch result with the device's own key, through the `agentKey` its provider wrapped for this device. It is a method of the agent, not a command: nothing is sent to the provider. Who signed the artifact is checked with the same signature steps a server runs on arrival, delegation and attestation included, and the opened document as any decrypted one is. Each signing key is found as a server finds it: from the agent's `keyResolver`; given none, from DNS, then, when DNS has no record for it, from the signer's host, at the signature's selector, asking as the agent's own identity. So a document from a hosted sender, whose key is not in DNS, opens. Unlike a server, the device checks no key chain: a key rotated away or expired is refused only once DNS or the host no longer gives it ([Checking keys on arrival](../../protocol/specifications/key-rotation.md#checking-keys-on-arrival)). Since 1.2, it also opens the statements in the artifact's cosignatures addressed to the user, through `agentKey.cosignatureKeys`, and returns them in `cosigned`; an unencrypted artifact with cosignatures is opened this way too.
 
 **Arguments:**
 
@@ -1372,7 +1403,7 @@ Since 1.2, opens an encrypted entry of a fetch result with the device's own key,
 
 **Returns:**
 
-- `Promise<BTPCryptoResponse>`: `payload`, the artifact with its document decrypted, or `error`. An entry with no `agentKey`, an agent with no key to decrypt with, an unencrypted artifact, or a key wrapped to another device key is refused with `BTP_ERROR_UNSUPPORTED_ENCRYPT`. A device that has just rotated its key finishes moving to the new key first.
+- `Promise<BTPCryptoResponse>`: `payload`, the artifact with its document decrypted, or `error`. An entry with no `agentKey`, an agent with no key to decrypt with, an unencrypted artifact without `agentKey.cosignatureKeys`, or a key wrapped to another device key is refused with `BTP_ERROR_UNSUPPORTED_ENCRYPT`. A cosignature addressed to the user that does not open is `BTP_ERROR_SIG_VERIFICATION`. A device that has just rotated its key finishes moving to the new key first.
 
 **Example:**
 

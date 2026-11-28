@@ -55,7 +55,7 @@ BTPS is a federated, secure message transport protocol designed for verifiable d
 ## 🔄 Protocol Flow Summary
 
 1. **Sender signs and encrypts message**
-2. **Receiver resolves sender identity via DNS**, and since 1.2 checks the key against the sender's key chain
+2. **Receiver resolves sender identity via DNS**. Since 1.2, it asks the sender's host for a key that is not in DNS, and checks the key against the sender's key chain
 3. **Receiver server verifies signature, delegation and trust** (and, since 1.2, the trust's permissions)
 4. **Receiver delivers message to inbox or webhook**
 

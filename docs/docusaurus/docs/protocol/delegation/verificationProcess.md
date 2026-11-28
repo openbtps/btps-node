@@ -92,15 +92,17 @@ Finally, the server verifies that the agent properly signed the original message
 
 ### **Since 1.2: Key Chains**
 
-Every key looked up in these steps (the attestor's, the delegator's) is also checked against its identity's key chain, served by its host: a key rotated away as planned is taken for `retiredKeyGraceSeconds` (a day by default), then refused with `BTP_ERROR_KEY_RETIRED`; a key rotated away with immediate expiry, or expired later, is refused at once with `BTP_ERROR_KEY_REVOKED`. An identity that never rotated has no chain, and its key is checked by DNS, as in 1.1. See [Key rotation](../../features/keyRotation.md).
+Every key looked up in these steps (the attestor's, the delegator's) is also checked against its identity's key chain, served by its host: a key rotated away as planned is taken for `retiredKeyGraceSeconds` (a day by default), then refused with `BTP_ERROR_KEY_RETIRED`; a key rotated away with immediate expiry, or expired later, is refused at once with `BTP_ERROR_KEY_REVOKED`. An identity that never rotated has no chain, and its key is checked as it is found. See [Key rotation](../../features/keyRotation.md).
 
-`verifyTransporterSignature` (`@btps/sdk/server`) runs these same steps outside a server, as `BtpsAgent.openResult` does.
+`verifyTransporterSignature` (`@btps/sdk/server`) runs these same steps outside a server, checking key chains only when given `keyChains`. `BtpsAgent.openResult` uses it without them: a device finds each key as a server does, but checks no key chain.
 
 ## 🔐 DNS Resolution
 
 ### **Public Key Resolution**
 
-The verification process relies on DNS to resolve public keys:
+The verification process resolves public keys in DNS first. Since 1.2, a delegator's or attestor's key that DNS has no record for is asked of its host, at the selector the delegation or attestation names, and taken only in an answer signed by the domain's operator. A domain's operator, who attests, is found in DNS only. See [Finding a signature key](../specifications/key-rotation.md#finding-a-signature-key).
+
+In DNS:
 
 #### **Delegator Public Key**
 

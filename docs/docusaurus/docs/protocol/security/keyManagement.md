@@ -81,6 +81,8 @@ Since 1.2, a device reads an encrypted document with its own key, so the identit
 2. checks who signed the artifact, as a server does on arrival: the sender's own key, or a delegation, its attestation, and the delegated agent's signature (`verifyTransporterSignature`);
 3. decrypts with its own key.
 
+Since 1.2, the same holds for an agreement's [cosignatures](../specifications/transporter-artifact.md#cosignatures): `wrapForAgent` wraps each cosignature's content key that the identity can open again to the device key (`agentKey.cosignatureKeys`), and `openResult` opens those statements with the device key. An unencrypted artifact that carries cosignatures gets `cosignatureKeys` alone.
+
 - **Only to the identity's own devices.** The provider wraps only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing.
 - **It always wraps to the key the device's record holds now.** A device that has not finished moving to a new key sees from `fingerprint` that the wrap is not for the key it holds.
 - **With a key held elsewhere,** the provider's `Decrypter` needs the optional `unwrapKey`, which returns the unwrapped AES key itself. `PemDecrypter` has it. A KMS decrypter already makes this call (KMS `Decrypt` on the wrapped key) inside `decrypt`, so `unwrapKey` is the same call without the AES step. `wrapForAgent` refuses a `Decrypter` without it, and so does `decryptBtpPayloadStreamWithDecrypter` ([Large payloads, a piece at a time](./decryption.md#large-payloads-a-piece-at-a-time)).

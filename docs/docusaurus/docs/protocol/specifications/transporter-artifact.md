@@ -83,6 +83,7 @@ An invoice sent from Alice's phone, through her provider, under a trust with per
 - **details**: Since 1.2, on the three details refresh types only (see [Details refresh](#details-refresh))
 - **syncOf**: Since 1.2, on a sync only: the send it copies (see [Sync](#sync))
 - **permissions**, **entityType**, **given**, **change**, **granted**, **documentType**: Since 1.2, trust permissions (see [Trust permissions](#trust-permissions))
+- **cosignatures**: Since 1.2, on a `BTPS_EVENT` in a `1.2.0` artifact only: an agreement's signed statements, outside the encrypted document, which every server checks on receipt (see [Cosignatures](#cosignatures))
 
 ## Trust permissions
 
@@ -137,6 +138,7 @@ From the envelope alone:
 
 And where the document is readable (not encrypted):
 
+- a request that gives a detail (`given`), or an answer that grants one (a `detail:` name in `granted`): details are never in the clear, and their values are in the document, a request's in its 1.1 fields (`name`, `email`, `phone`, `address`, the profile fields) or `own`, an answer's in `details`;
 - a request carrying its own values (`own`), or an answer carrying the granted values (`details`, keyed by name, so `detail:profile` sits inside it as `{ displayName, logo?, website? }`): those are always encrypted;
 - an answer that is not `accepted` but carries `granted`.
 
@@ -277,6 +279,8 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 - a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
 - a response answers a request the receiver knows (`isKnownArtifact` on its `relatesTo`, `BTP_ERROR_PERMISSION`).
 
+The trust's privacy type is not checked: a details message is about the trust, not sent over it. A response carries values and is always encrypted (the schema refuses one in the clear); a notice or a request carries none and may go unencrypted.
+
 **The platform's own checks.** Two more checks read records only the platform keeps, so they are the platform's, off until it adds them as middleware from `@btps/sdk/server/core`. Each runs after the server's trust check and refuses in flight, from the envelope, encrypted or not:
 
 - `detailsResponseCheck({ getArtifact })`: a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`detailsRequestRefusal`; `BTP_ERROR_PERMISSION`, the reason in its message). For a response arriving and for one this provider's own device sends.
@@ -403,7 +407,7 @@ Used to accept, reject, or block trust requests.
 - **expiresAt**: Trust expiration date (ISO format)
 - **retryAfterDate**: Date after which retry is allowed (ISO format)
 - **message**: Custom message to sender: a note, with a format since 1.2 (see Notes)
-- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every artifact sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400).
+- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every document and event sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400). It does not apply to an artifact about the trust itself, a trust request or answer or a [details refresh](#details-refresh): what that carries decides, and one carrying values (a request's `own`, an answer's `details`, a `DETAILS_RES`) is always encrypted.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 
@@ -744,13 +748,16 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
 
 #### Agreement
 
-Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and may carry a BoundView and a signatory as a letter does. It also carries `acceptance`, which is required, and `originatorSignature`. A 1.1 receiver refuses it by version.
+Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and may carry a BoundView and a signatory as a letter does. It also carries `acceptance` and `salt`, both required, and `originatorSignature`. A 1.1 receiver refuses it by version.
+
+This one is from the golden vectors (`agreements.vectors.json`), with its originator's real signature:
 
 ```json btps=document:BTPS_DOC
 {
   "type": "agreement",
   "title": "Home loan agreement",
   "id": "AGR-1",
+  "salt": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
   "issuedAt": "2026-10-19T00:00:00.000Z",
   "body": {
     "format": "markdown",
@@ -779,37 +786,39 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
     "selector": "btps1",
     "signature": {
       "algorithmHash": "sha256",
-      "value": "BASE64-SIGNATURE",
-      "fingerprint": "BASE64-FINGERPRINT"
+      "value": "cz889mCrNDhiOutUfkf/fzwlTqrWl5KekO3DcGHH+itwH6aJBcjxFtjH6F9L/8olXpNRbUI4P2FKYEBQHiKyH1tazcNxyM474OM+DYDcZTlBDMooG5PAN1LuIE6hzbreNcCpCj5ZHbK43fAoxkfJzRC1TK4CkFDPCo18K3vTiQl4njMA9zFGMOM02gT/1eVhtp/0eM6RRmfjo7hZ7VMUEoT5GVe+mIS0dhlP7a0B9h1Kd/X9zbGIU4uAb4tJ2ihT1FtKWEppW8dW1XLEZwcVPeQ7prTMdBZ1LOzC06p8bHrQuWaQ0lOnkSiTkO9cOnDEM1vBLLR7sd++gXOyBndnTA==",
+      "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
     }
   }
 }
 ```
 
-Its `contentSha256`, as `agreementContentSha256` gives it, is `fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc`, and its one term is its attachment's `sha256`.
+Its `contentSha256`, as `agreementContentSha256` gives it, is `85aa77265b21d30739eb1aa19e17db6fc832f674319c763ed7ce8de5fc2d53bf`, and its one term is its attachment's `sha256`.
 
 - **`acceptance.signers`**: who accepts it, 1 to 20 BTPS addresses, each once, letters compared without case. The originator may be one of them, for example a bank that countersigns. It is signed content, so the list cannot change after sending.
 - **`acceptance.signingOrder`**: `sequential`, where the signers answer in list order, or `any`.
 - **`acceptance.terms`**: the SHA-256 of each attachment that is a term of the agreement, each once, and each the `sha256` of one of its attachments. It may be empty: an acceptance always covers the whole signed content, and `terms` only names which attached documents are the contract.
 - **`acceptance.by`** (optional): the deadline. A signer's answer is signed no later than it.
+- **`salt`** (since 1.2, required): 32 random bytes, base64: it must decode to exactly 32 bytes. It is part of the content, so of `contentSha256`, which every [cosignature](#cosignatures) carries readable on its envelope. Without it, anyone who holds a standard agreement's text could hash it and confirm a guess at what was signed. Like the rest of the content, it travels encrypted.
 - **One source of truth:** an agreement always carries `acceptance`, and a letter never does, so the type and the block can never disagree. There is no `kind` field.
 - **Its content and its originator's signature.** An agreement is identified by its originator's address, its `id`, and its `contentSha256`: the SHA-256, in lowercase hex, of its RFC 8785 form without `originatorSignature`. `originatorSignature` is the originator's signature, at `selector`, over the RFC 8785 form of `{ originator, id, contentSha256 }`. Every signer gets its own copy, encrypted to it only; the copies have the same content, so any copy can be checked offline, whatever its encryption.
 - **Its permission:** under a trust with permissions, an agreement travels with `documentType: "agreement"`, and the receiver must have granted `send:agreement` (see [A send's document type](#a-sends-document-type)).
 
-**A signer's answer is a signed statement** over the RFC 8785 form of:
+**A signer's answer is a statement**, which travels encrypted, and signed, in its [cosignature](#cosignatures):
 
 ```json btps=statement
 {
   "agreement": {
     "originator": "loans$bank.example",
     "id": "AGR-1",
-    "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+    "contentSha256": "85aa77265b21d30739eb1aa19e17db6fc832f674319c763ed7ce8de5fc2d53bf"
   },
   "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
   "signer": "sam$guarantor.example",
+  "artifactId": "719a6118-3d0b-4e4c-8843-9dd66c79c98f",
   "decision": "accepted",
   "signedAt": "2026-11-03T00:00:00Z",
-  "previous": "f78c00eb0e96699e374a1dd55ddf9ec61736b85ceee5d6386049114492fb24c9",
+  "previous": "d9c52d5bebc9aed476c08353f22dff5ce033514f43f84447541b8af7f5f512b4",
   "visualSignature": { "type": "typed", "text": "Sam Lee" },
   "consent": {
     "electronic": true,
@@ -822,14 +831,16 @@ Its `contentSha256`, as `agreementContentSha256` gives it, is `fabe09ee458f0f7b3
 }
 ```
 
-This is Sam's answer to the agreement above, after Alice's: its `agreement` is that agreement's, and `previous` is the `statementRecordSha256` of Alice's accepted record shown on [Agreements](../../features/agreements.md#an-answer). Each field after `previous` is optional. A `declined` statement may carry `viewedAt`, `viewedFrom` and `signedFrom`, never `visualSignature` or `consent`.
+This is Sam's answer to the agreement above, after Alice's: its `agreement` is that agreement's, and `previous` is the `cosignatureSha256` of Alice's cosignature, shown in [Cosignatures](#cosignatures). Each field after `previous` is optional. A `declined` statement may carry `viewedAt`, `viewedFrom` and `signedFrom`, never `visualSignature` or `consent`.
 
+- **`signer`** is the signer's address, compared without case, as every address is.
+- **`artifactId`** (since 1.2, required): the `id` of the artifact that first delivers the statement, the signer's answer. For a statement signed on a device, it is the id of the device's delegated artifact. Its cosignature names the same id, so the statement cannot be moved into another artifact.
 - **`terms`** repeats the agreement's `acceptance.terms` exactly, in the same order. **`decision`** is `accepted` or `declined`. **`signedAt`** is the signer's own signed time, which the deadline is checked against.
-- **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the statement record before it, in its RFC 8785 form, signature included.
-- **`visualSignature`**, optional, on an `accepted` statement only: the signer's own signature as data, `{ "type": "typed", "text": "Alice Ng" }` or `{ "type": "drawn", "strokes": [[x, y, x, y, …]] }`, with a letter's limits (plain text of at most 100 characters; integer strokes on a 1000 by 300 canvas, at most 32 strokes and 2048 points). It is inside the statement, so the statement's signature covers it, and it travels into the evidence bundle with it. Signing with the key is what accepts; the visual signature is what a reader is shown. Whether one is required is the platform's choice.
+- **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the cosignature before it (`cosignatureSha256`, see [The chain](#the-chain)).
+- **`visualSignature`**, optional, on an `accepted` statement only: the signer's own signature as data, `{ "type": "typed", "text": "Alice Ng" }` or `{ "type": "drawn", "strokes": [[x, y, x, y, …]] }`, with a letter's limits (plain text of at most 100 characters; integer strokes on a 1000 by 300 canvas, at most 32 strokes and 2048 points). It is inside the statement, so the signer's signature covers it, and it travels into the evidence bundle with it. Signing with the key is what accepts; the visual signature is what a reader is shown. Whether one is required is the platform's choice.
 - **`consent`**, optional, on an `accepted` statement only: the signer's consent to sign electronically, `{ "electronic": true, "disclosureSha256": "…", "at": "2026-11-03T00:00:00Z" }`. `electronic` is always `true`. `disclosureSha256` is the SHA-256, in lowercase hex, of the disclosure the signer's platform showed it, in that platform's own words: BTPS carries the fact, and each platform writes and versions its own wording. `at` is when the signer agreed, an RFC 3339 time no later than `signedAt`. A `declined` statement with a `consent` is refused.
 - **`viewedAt`**, optional, on an `accepted` or a `declined` statement: when the signer first viewed the agreement, an RFC 3339 time no later than `signedAt`.
-- **`consent` and `viewedAt`** are there because laws on electronic signatures (such as Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, and eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically and of when it viewed the document. Both are inside the statement, so the statement's signature covers them: changing or removing either makes it no longer check. They travel into the evidence bundle with it, so any platform's evidence can show them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
+- **`consent` and `viewedAt`** are there because laws on electronic signatures (such as Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, and eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically and of when it viewed the document. Both are inside the statement, so the signer's signature covers them: changing or removing either makes it no longer check. They travel into the evidence bundle with it, so any platform's evidence can show them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
 - **`viewedFrom`**, optional, only with a `viewedAt`: where the signer viewed the agreement from. A statement with a `viewedFrom` and no `viewedAt` is refused.
 - **`signedFrom`**, optional, on an `accepted` or a `declined` statement: where the signer answered from.
 - **A signing context**, the value of each, is an object with `ip`, `userAgent` and `device`, each optional, at least one of the three. **`ip`** is the IP address the request came from, IPv4 or IPv6. **`userAgent`** is the user agent the browser or app sent, printable ASCII text of at most 256 characters. **`device`** is an object with `os`, `osVersion`, `model`, `browser`, `browserVersion`, `app`, `appVersion` and `id`, each optional, at least one, each printable ASCII text of at most 100 characters (`id`, at most 128). `id` is the platform's own identifier for a device it registered, such as an app installation, not a fingerprint. For example:
@@ -849,10 +860,9 @@ This is Sam's answer to the agreement above, after Alice's: its `agreement` is t
   }
   ```
 
-- **A context is the signer's platform's observation**, not cryptographic proof of location or device: the platform saw the request, and a browser reports what it reports. How much is known, and how accurately, is the platform's responsibility: a web browser may give only a user agent (some browsers expose the OS and model through User-Agent Client Hints), and a native app can give its OS, version, model and its registered device id. BTPS only carries the fields. Both contexts are inside the statement, so the statement's signature covers them and they cannot be changed afterwards. They travel into the evidence bundle and to every party the statement is forwarded to. A statement without them stays valid.
+- **A context is the signer's platform's observation**, not cryptographic proof of location or device: the platform saw the request, and a browser reports what it reports. How much is known, and how accurately, is the platform's responsibility: a web browser may give only a user agent (some browsers expose the OS and model through User-Agent Client Hints), and a native app can give its OS, version, model and its registered device id. BTPS only carries the fields. Both contexts are inside the statement, so the signer's signature covers them and they cannot be changed afterwards. They travel into the evidence bundle and to every party the statement is forwarded to. A statement without them stays valid.
 - **Privacy.** An IP address and device details are personal information in many jurisdictions. A platform that records them should tell the signer before it signs, for example in the disclosure `consent.disclosureSha256` names, that they are recorded and shared with the agreement's parties. Every field is optional, so a platform may leave them out.
-- **The record** is `{ statement, signature, selector }` when the signer signs with its identity key, which may be a managed key its provider holds. When a device signs it, the record is `{ statement, signature, delegatedArtifact }`: the whole event artifact that delivered it, as it arrived (envelope, ciphertext, the device's signature and its delegation), which the originator adds on receipt. A BTPS delegation signs the artifact it travels with, so the record keeps that artifact to stay checkable offline. Its ciphertext only has to verify, never to open.
-- **The key kind is a fact, not a field:** a record with a delegated artifact was signed by a device, and one without by the identity, so the two can never disagree. A device's record checks when its delegation is its delegator's over that artifact, a self-delegation (signed by the signer itself) carries an attestation, as a server requires on arrival, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement. All of these are checked offline. Who delegated it, and who attested it, are reported as facts: whether the delegator, or the attestor, is the signer's domain's operator needs DNS (`_btps.host` `op`), which a reader may confirm online; it is never a verdict.
+- **How it is signed and carried**: the statement is never sent on its own. Its [cosignature](#cosignatures) encrypts it once to the originator and every signer, and the signer signs the cosignature over that ciphertext and the statement's SHA-256, by its identity key or on a device. Every BTPS server on the way checks that signature on receipt, without decrypting.
 - **An answer is final.** A statement is never withdrawn; a change is a new agreement.
 
 Each document type's limits are on [Limits](./limits.md#document-fields).
@@ -999,56 +1009,38 @@ Answering that question is required of every trust store (`isKnownArtifact`, see
 
 Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's answer instead of an invoice's lifecycle event: `type` is `agreement_event`, and every one names its agreement, `{ originator, id, contentSha256 }`.
 
-| `eventType`          | From                        | Carries                                                                         |
-| -------------------- | --------------------------- | ------------------------------------------------------------------------------- |
-| `accepted`           | a signer, to the originator | `statement`: its signed statement record, whose `decision` is `accepted`        |
-| `declined`           | a signer, to the originator | `statement`, whose `decision` is `declined`, and an optional `message` (a note) |
-| `agreement_progress` | the originator, to a signer | `statements`: the records so far, before a sequential signer's turn             |
-| `agreement_complete` | the originator, to a signer | `statements`: every record, once all have answered                              |
+The event names what happened. The signed statements are not in it: they travel on the artifact's envelope, as its `cosignatures` (see [Cosignatures](#cosignatures)).
 
-Alice's answer to the agreement above, the first in its order:
+| `eventType`          | From                        | The event carries                   | The artifact's `cosignatures` carry                                  |
+| -------------------- | --------------------------- | ----------------------------------- | -------------------------------------------------------------------- |
+| `accepted`           | a signer, to the originator | the agreement it answers            | exactly the signer's own, whose statement's `decision` is `accepted` |
+| `declined`           | a signer, to the originator | the agreement, and an optional note | exactly the signer's own, whose statement's `decision` is `declined` |
+| `agreement_progress` | the originator, to a signer | the agreement                       | the cosignatures so far, in order, before a sequential signer's turn |
+| `agreement_complete` | the originator, to a signer | the agreement                       | every cosignature, in order, once all have answered                  |
+
+Alice's answer to the agreement above, the first in its order, opened. It is the golden vectors' `accepted` event:
 
 ```json btps=document:BTPS_EVENT
 {
   "type": "agreement_event",
-  "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
-  "occurredAt": "2026-11-02T09:14:52.000Z",
+  "id": "b38feac1-e0f1-4afb-85d2-4fbd1965357c",
+  "occurredAt": "2026-11-02T00:00:00.000Z",
   "eventType": "accepted",
   "agreement": {
     "originator": "loans$bank.example",
     "id": "AGR-1",
-    "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-  },
-  "statement": {
-    "statement": {
-      "agreement": {
-        "originator": "loans$bank.example",
-        "id": "AGR-1",
-        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-      },
-      "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-      "signer": "alice$client.example",
-      "decision": "accepted",
-      "signedAt": "2026-11-02T09:14:52.000Z",
-      "viewedAt": "2026-11-02T09:02:41.000Z"
-    },
-    "selector": "btps1",
-    "signature": {
-      "algorithmHash": "sha256",
-      "value": "BASE64-SIGNATURE",
-      "fingerprint": "BASE64-FINGERPRINT"
-    }
+    "contentSha256": "85aa77265b21d30739eb1aa19e17db6fc832f674319c763ed7ce8de5fc2d53bf"
   }
 }
 ```
 
-Shortened: the full answer, with its consent and signing contexts, is on [Agreements](../../features/agreements.md#an-answer).
+Its statement is in the cosignature its artifact carries, shown whole in [Cosignatures](#cosignatures). An event that carries `statement` or `statements` is refused (`BTP_ERROR_VALIDATION`).
 
-- **Forwarding carries records only**, at most one for each of at most 20 signers, never the agreement again: each signer already has its own copy. Whether and when to send `agreement_complete` is the originator's choice; from the records, the signer's platform assembles the evidence bundle.
+- **Forwarding carries cosignatures only**, at most one for each of at most 20 signers, in order and unchanged, never the agreement again: each signer already has its own copy. The originator may forward its own cosignature with the others, when it is a signer too. Whether and when to send `agreement_progress` and `agreement_complete` is the originator's choice; from the cosignatures, the signer's platform assembles the evidence bundle.
 - **`relatesTo`** names the signer's own copy of the agreement, as an invoice's event names its invoice, and the event travels over the trust between the two, as any event does.
-- **The event is consistent with itself, which the server checks:** its `id` is the artifact's `id`, and its agreement's `originator` is the artifact's `from` or `to`. These read only the artifact, so they are structure: a readable event is refused on arrival, and an encrypted one by `decryptVerify` once opened.
+- **The event is consistent with itself, which the server checks:** its `id` is the artifact's `id`, and its agreement's `originator` is the artifact's `from` or `to`. These read only the artifact, so they are structure: a readable event is refused on arrival, and an encrypted one by `decryptVerify` once opened. `decryptVerify` also refuses an event whose cosignatures name another agreement than the event does (`BTP_ERROR_SIG_VERIFICATION`).
 - **An answer is final.** A `withdrawn` names a proposal only, so it can never name an `accepted` or `declined`. A change is a new agreement.
-- **Nothing about the agreement is on the envelope.** An answer's envelope is an ordinary event's: a server sees that an event passed between two parties, and nothing of which agreement it answers or where it falls.
+- **What the envelope shows**. An answer's envelope carries its cosignature, so every server on the way can read which agreement it answers (`ref`: the originator, the id and `contentSha256`), who signed it, in what order (`previous`), and to whom the statement is encrypted. What each signer said, its decision included, stays encrypted, and the statement is padded so its length does not tell an acceptance from a decline. The agreement's text is not on the envelope, and its `salt` keeps `contentSha256` from confirming a guess at it.
 
 **The order is the originator's platform's, never the server's.** The order of the answers is data the originator chose, as an invoice's amounts are, so the server never checks it: it checks structure, signatures, the trust and its permissions, and passes the answer on. The platform records the answers it takes, and checks each one in two parts.
 
@@ -1070,7 +1062,160 @@ Shortened: the full answer, with its consent and signing contexts, is on [Agreem
   }
   ```
 
-- **The statement, once opened.** What needs the opened statement the platform checks with `agreementStatementProblem` from `@btps/sdk/trust`: its `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, it is its sender's own, it was signed no later than `acceptance.by`, and `previous` is the SHA-256 of the last answer taken, or none for the first, in a `sequential` agreement, and absent in an `any` one (`agreementOrderProblem`). A platform holding the originator's key (a managed key) can open the answer in its own middleware and refuse it in flight too. When the user holds the key, the platform checks it once the user's device has opened it, and answers the sender afterwards with a BTPS event. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)). The rules of the statement's own fields (`visualSignature` and `consent` on an acceptance only, `viewedFrom` only with `viewedAt`, `consent.at` and `viewedAt` no later than `signedAt`, each signing context's limits) are structure, not part of this check: the server refuses a readable answer that breaks them on arrival, and `decryptVerify` an encrypted one once opened.
+- **The statement, once opened.** `decryptVerify` opens the answer's cosignature and gives its statement in `cosigned` (see [What the receiver checks](#what-the-receiver-checks)). What needs the opened statement the platform checks with `agreementStatementProblem` from `@btps/sdk/trust`, given the event, its cosignature and that statement, and the cosignatures already taken with their statements: its `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, it is its sender's own, it was signed no later than `acceptance.by`, and `previous` is the `cosignatureSha256` of the last answer taken, or none for the first, in a `sequential` agreement, and absent in an `any` one (`agreementOrderProblem`). A platform holding the originator's key (a managed key) can open the answer in its own middleware and refuse it in flight too. When the user holds the key, the platform checks it once the user's device has opened it, and answers the sender afterwards with a BTPS event. Signatures are not part of this check: the server checked each cosignature's on receipt. The rules of the statement's own fields (`visualSignature` and `consent` on an acceptance only, `viewedFrom` only with `viewedAt`, `consent.at` and `viewedAt` no later than `signedAt`, each signing context's limits) are structure, not part of this check either: `decryptVerify` refuses a statement that breaks them when it opens it, with `BTP_ERROR_SIG_VERIFICATION` ("its statement is not in its one form"). No server can read a statement, so none refuses it on arrival.
+
+#### Cosignatures
+
+Since 1.2, in a `1.2.0` artifact only. BTPS signs everything the same way: it encrypts the document, signs the artifact over the ciphertext, and every receiving server checks the signature before anything is decrypted (`signEncrypt`, `decryptVerify`). An agreement's statements are signed the same way, as **cosignatures**. It is the signer's statement, encrypted once to every party, and signed over that ciphertext. It travels on the event's envelope, so every BTPS server on the way checks its signature on receipt, without decrypting. Who signed, and in what order, is readable. What each signer said is encrypted.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Alice's platform
+    participant BS as Bank's BTPS server
+    participant B as Bank's platform
+    participant SS as Sam's BTPS server
+    participant S as Sam's platform
+    A->>A: cosign: encrypt the statement once to the bank, Alice and Sam, then sign
+    A->>BS: BTPS_EVENT accepted, carrying Alice's cosignature
+    BS->>BS: cosignaturesProblem: Alice's signature, without decrypting
+    BS-->>A: 200
+    B->>B: decryptVerify: opens Alice's statement (cosigned)
+    B->>SS: BTPS_EVENT agreement_progress, carrying Alice's cosignature unchanged
+    SS->>SS: cosignaturesProblem: the same signature, checked again
+    S->>S: decryptVerify: opens Alice's statement, as one of its recipients
+```
+
+**Where they travel.** `cosignatures` is a list on a `BTPS_EVENT`'s envelope, at least one and at most 20.
+
+- An agreement's answer (`accepted`, `declined`) carries exactly its own signer's cosignature.
+- The originator's forwards (`agreement_progress`, `agreement_complete`) carry the cosignatures they forward, in order and unchanged. The originator may carry its own too, when it is also a signer.
+- Anywhere else, `cosignatures` is refused (`BTP_ERROR_VALIDATION`): on another artifact type, in a `1.1.0` artifact, or as an empty list.
+
+Alice's cosignature on her answer, as it travels. It is the golden vectors' `cosignatureSha256` case, the same one their `cosignatures` case `answer-carrying-its-own` carries:
+
+```json btps=cosignature
+{
+  "ref": {
+    "originator": "loans$bank.example",
+    "id": "AGR-1",
+    "contentSha256": "85aa77265b21d30739eb1aa19e17db6fc832f674319c763ed7ce8de5fc2d53bf"
+  },
+  "signer": "alice$client.example",
+  "selector": "btps1",
+  "artifactId": "b38feac1-e0f1-4afb-85d2-4fbd1965357c",
+  "statementSha256": "a2a8b77987c9f5871e41fbd0bfb6c3bc7577b9c73bdf76d110ab66c16ac1d4c1",
+  "recipients": [
+    {
+      "identity": "alice$client.example",
+      "fingerprint": "AweN/CtrGovnDg5O66wnltYg3fdHMFBpAWtvKSsfUtA=",
+      "wrappedKey": "MWsDSeIel8S1pKgMen65Aw+lI/4hJpKVXgMCgpj/DwSlSgT3eTGmGC5oFOKr8lc5p8DsOmZaOCw6KvTkMyFVr0LcXbmSGxiRUUxlP7dqg57dW1hmhLfGvdL/SscJJRRYXcwY4nO5Rrt71C0CNcGtn7EyIj9Gzpwk1bre+L5Zz8SzEhf7/qkDT0Ga+kebEf880lfOIdjLVYqyW3HNW+BbD4fqDKa6LfGw7i0MAneF8gryXrEMFEqE7z6BCsk50S3OEHrLMrHI7cidksDCKv1kRcPQzl/IySVR+O+u+4QoF09o/bExNUfHLpT9fWN0IYGnyq1rUCu5cfGoAKCM1QrJmg=="
+    },
+    {
+      "identity": "loans$bank.example",
+      "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs=",
+      "wrappedKey": "EKQiRh+1EAQ8R/HaDrYtP+tDW6zeG+2Sk+aenSGD+7nRz+8k6esLdLm8TgMtjTy3kfnFpIbOiJG2l6Pgx0QUYsPTAcmMfz2Brr5Q95Vygq1B4xGAPKVREylCMyjL3zP+yo5/QEZj5fqD2avWHOIkHkYTrH2Rtt2k8rxUj4VZByylENNA3jlJWFUv6K8nlBWgqvnjB06hpGLLwUi58Bdt8W5tD7X+kKURRIH/xPon6KAaSx768eFGLWCYZezBHUH37vtVI1RnTWb1GsdJL+JFmPFOCNMCPrhl2iD2RG8y99ORRoEX0WE48nJjrNc0bvQr8XndHqYcuIHHCHLxahD2bQ=="
+    },
+    {
+      "identity": "sam$guarantor.example",
+      "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0=",
+      "wrappedKey": "HJvrZkrPmXty4GA3LKnbSkGRA8y+ndZfLaqrryN51lLfbWPjuE+qE9oJah+legsSPgvem/7iJMi+Pvolb+UkNlMGIXK9WH31rKF6JykR1otWH+hErQSZsLTHBktnmoJTiYe6XAJXO9luxFPgxlDUc7/9fPMBx0aobYW8fNygX0sczNkcPhBO/T9fERoPKS5TsMRC8bbDJ83Ra5xVl7PryK5MP3SuoZDd0wmbnFQsmN+fzJ9qsx9byuFcaeJgFIGzsbhlOyMmh/K8vU+AtmLfYFGFVgIwKa9SYIkuNBQBGTwJJuaJ2L/6QhWy27HGQVN4pS5023a7F933eM+ZBdgsSg=="
+    }
+  ],
+  "encryption": {
+    "algorithm": "aes-256-gcm",
+    "iv": "nLgq/nSffQA7jt/y",
+    "authTag": "3KBD2p0EJv5ObscDXx2JYw=="
+  },
+  "ciphertext": "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",
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "o3eD4TsbS7/m0OTgEXi7UYy1B+tHztAwg/1/S+ySI02u5mPzmgPkGzcs38YXigz9XfiVSPa4qVAXYuvsvUW422V9Htb2D2byHshsenYZG+JKp5SqQTGZbrPILe/Z0RuoC39hLloLoI7KsBtZGyL6zBA4WCdj/avkhsqMH3WNBYUU17oAYak8Xma7OCWylaUtDNNcnSqHdq6URs231k8cL5aWv7osgPD99V9EQtiZUbw4lEb6Vc1OKgeV+44lALVmxc7v1t/Z/+fdL6TzTGI5HM+XuTSGK+feJpDzBEsCvkWnYX8VNTG4valGAL+QDD39jwIIDkqQU+on45Ky0GLOsw==",
+    "fingerprint": "AweN/CtrGovnDg5O66wnltYg3fdHMFBpAWtvKSsfUtA="
+  }
+}
+```
+
+| Field               | Type                                        | Required                  | What it says                                                                                                                                  |
+| ------------------- | ------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ref`               | `{ originator, id, contentSha256 }`         | yes                       | the agreement the statement answers                                                                                                           |
+| `signer`            | identity                                    | yes                       | who signed the statement                                                                                                                      |
+| `selector`          | string                                      | for an identity key       | the selector of the signer's identity key that signed it. Left out on a device                                                                |
+| `delegatedArtifact` | the delegated artifact                      | on a forwarded device one | the device's delegated artifact that first delivered it, whole, as it arrived. The originator adds it when it forwards a device's cosignature |
+| `artifactId`        | UUID                                        | yes                       | the `id` of the artifact that first delivers it: the signer's answer, or on a device its delegated artifact                                   |
+| `previous`          | SHA-256, lowercase hex                      | no                        | the `cosignatureSha256` of the cosignature before it, in a sequential agreement                                                               |
+| `statementSha256`   | SHA-256, lowercase hex                      | yes                       | the SHA-256 of the encrypted statement's exact text                                                                                           |
+| `recipients`        | `[{ identity, fingerprint, wrappedKey }]`   | yes                       | each party the statement is encrypted to: its identity, the SHA-256 fingerprint of its key, and the content key wrapped to that key (base64)  |
+| `encryption`        | `{ algorithm: "aes-256-gcm", iv, authTag }` | yes                       | how the statement is encrypted; `iv` and `authTag` are base64                                                                                 |
+| `ciphertext`        | base64                                      | yes                       | the encrypted statement                                                                                                                       |
+| `signature`         | signature                                   | yes                       | the signer's signature over the cosignature (below)                                                                                           |
+
+A cosignature has no other field: an unknown one is refused. It has at most one of `selector` and `delegatedArtifact`. Its `recipients` name each identity once (compared without case), at most 21, and include its `signer` and its `ref.originator`.
+
+##### The encrypted statement
+
+- **What is encrypted** is the RFC 8785 form of `{ statement, padding }`. `padding` is a string of `0`s that brings the text's length up to a multiple of 4,096 characters (`BTPS_FIELD_LIMITS.agreement.statementPaddingBucket`). An acceptance may carry a visual signature and a consent, and a decline never does, so without padding the ciphertext's length would tell one from the other. `cosignedStatementText` writes this text, and the same statement always gives the same text.
+- **`statementSha256`** is the SHA-256 of that exact text.
+- **How.** The text is encrypted once with AES-256-GCM under a fresh content key. The content key is wrapped with RSA-OAEP (SHA-256) to every recipient: the originator and every signer.
+- **A cosignature carries a statement, never a document.** Its `ciphertext` is at most 262,144 base64 characters (`BTPS_FIELD_LIMITS.agreement.cosignatureCiphertextChars`), room for a statement with a drawn signature, padded.
+
+Alice's statement, opened, as the golden vectors' `cosigned` case `accepted` holds it. Its RFC 8785 form is exactly 4,096 characters, and its SHA-256 is the cosignature's `statementSha256` above:
+
+```json btps=cosignedStatement
+{
+  "padding": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "statement": {
+    "agreement": {
+      "contentSha256": "85aa77265b21d30739eb1aa19e17db6fc832f674319c763ed7ce8de5fc2d53bf",
+      "id": "AGR-1",
+      "originator": "loans$bank.example"
+    },
+    "artifactId": "b38feac1-e0f1-4afb-85d2-4fbd1965357c",
+    "decision": "accepted",
+    "signedAt": "2026-11-02T00:00:00.000Z",
+    "signer": "alice$client.example",
+    "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"]
+  }
+}
+```
+
+##### The cosignature's signature
+
+- **What is signed:** the RFC 8785 form of the cosignature without `signature` and `delegatedArtifact` (`cosignatureSignedPart`), ciphertext included. The statement is encrypted first and then signed, as every BTPS artifact is. `statementSha256` is inside what is signed, so the signature binds the signer to every word of the statement. There is no second signature inside.
+- **By its identity key:** `selector` names the signer's key that signed it, which may be a managed key its provider holds.
+- **On a device:** the device's own key signs, and `selector` is left out. In the device's delegated artifact that first delivers it, the cosignature has neither `selector` nor `delegatedArtifact`: that artifact's delegation stands for it, and its `artifactId` is that artifact's `id`. When the originator forwards it, it adds `delegatedArtifact`: the device's whole artifact, exactly as it arrived (envelope, ciphertext, the device's signature and its delegation). The device signed all of that artifact, and a BTPS delegation signs the artifact it travels with, so nothing in it may be left out or changed: the cosignature keeps it whole to stay checkable wherever it is forwarded, and offline. Its ciphertext only has to verify, never to open. `delegatedArtifact` is added after signing, so it is outside the signature and outside the chain hash.
+- **The key kind is a fact, not a field:** a cosignature with a delegated artifact, or one in its device's own delegated artifact, was signed by a device. One with a `selector` was signed by the identity.
+
+##### The chain
+
+**`cosignatureSha256`** is the SHA-256, in lowercase hex, of a cosignature's RFC 8785 form, `signature` included, without `delegatedArtifact`. It names a cosignature: the next statement in a sequential agreement names it as `previous`, and so does that statement's cosignature, and trusted timestamps and signed arrivals are over it ([The evidence bundle](#the-evidence-bundle)). For Alice's cosignature above, it is `d9c52d5bebc9aed476c08353f22dff5ce033514f43f84447541b8af7f5f512b4`, which Sam's statement in [Agreement](#agreement) names.
+
+##### What every server checks on receipt
+
+Every BTPS server checks an arriving artifact's cosignatures in its signature step, right after the artifact's own signature, without decrypting anything (`cosignaturesProblem`). It is part of the protocol and cannot be turned off. An artifact that fails is refused with `BTP_ERROR_SIG_VERIFICATION` (401), the broken rule in its reason:
+
+- **Each cosignature's signature:** by the signer's key at its `selector`, found through the server's key resolver and key chains; or a device's, under the rules below. Which key rules apply depends on when the cosignature was made:
+  - **Made now**, its `artifactId` the carrying artifact's `id` (a signer's answer): the live rules, as for the artifact's own signer. A key rotated away is taken only within the receiver's `retiredKeyGraceSeconds`, and an expired key is refused.
+  - **Forwarded**, its `artifactId` another artifact's, which first delivered it: its key is taken by its history. A key rotated away as planned since it signed still holds, whatever the receiver's grace, and a compromised key (one with `compromisedSince`) is always refused. This is how an [evidence bundle](#the-evidence-bundle) takes a rotated key too, so a forward reaches every signer however long after the first answer it is sent. A device's delegator and attestor keys are taken the same way.
+- **One document, one each, in order:** all name one document; a signer cosigns once; and one that names `previous` follows the one before it in the list.
+- **Who carries what:** an artifact from anyone but the document's originator carries only its own signer's cosignature, whose `artifactId` is that artifact's `id`. The originator may carry any, its own among them.
+- **A device's:** its delegation is its delegator's, a self-delegation (signed by the signer itself) carries an attestation, any attestation is its attestor's, the delegated artifact came from the signer and is signed by the device, and so is the cosignature. The delegated artifact's `id` is the cosignature's `artifactId`: that stops a stolen device key from pairing a fresh statement with an older delegated artifact.
+
+The server checks no order between answers: that is the originator's platform's, with `agreementOrderCheck` ([Agreement events](#agreement-events)).
+
+##### What the receiver checks
+
+`decryptVerify`, once it has decrypted the event, holds every cosignature to the document the opened event is about: each must name it. Then it opens each cosignature its receiver (the artifact's `to`) is a recipient of (`openCosignature`), and checks that:
+
+- the content key opens with the receiver's key;
+- the text's SHA-256 is the cosignature's `statementSha256`;
+- the text is in its one RFC 8785 form, and is a statement and padding that keep the statement's own rules;
+- its padding is exactly what `cosignedStatementText` writes: `0`s up to the next multiple of 4,096 characters;
+- the statement's `agreement`, `signer`, `artifactId` and `previous` are the cosignature's `ref`, `signer`, `artifactId` and `previous`.
+
+It returns the statements in `cosigned`, by position: the opened statement, or `null` where the receiver is not a recipient. A cosignature for the receiver that does not hold, or one that names another document, is refused with `BTP_ERROR_SIG_VERIFICATION` and no payload. A statement addressed to the receiver is never skipped: when the artifact carries a cosignature for the receiver and no receiver key is given, it is refused the same way. With none for the receiver, no key is needed.
+
+**On a device**, the provider wraps each cosignature's content key again to the device key, beside the document's, in the query result's [`agentKey.cosignatureKeys`](./responses.md), and the device opens its statements with its own key. A device sends cosignatures as any sender does: its own answer, signed with its device key, or, for a user who is the originator, the cosignatures it forwards ([Devices](../../features/devices.md#cosignatures-on-a-device)).
 
 #### The evidence bundle
 
@@ -1083,7 +1228,8 @@ The shape, shortened; a whole bundle is on [Evidence bundles](../../features/evi
   "format": "btps-evidence/1",
   "originator": "loans$bank.example",
   "agreement": { "type": "agreement", "…": "…", "originatorSignature": { "…": "…" } },
-  "statements": [{ "statement": { "…": "…" }, "selector": "btps1", "signature": { "…": "…" } }],
+  "cosignatures": [{ "ref": { "…": "…" }, "signer": "alice$client.example", "…": "…" }],
+  "statements": ["{\"padding\":\"000…\",\"statement\":{…}}"],
   "keys": [
     {
       "identity": "loans$bank.example",
@@ -1093,16 +1239,16 @@ The shape, shortened; a whole bundle is on [Evidence bundles](../../features/evi
     }
   ],
   "keyChains": [{ "identity": "loans$bank.example", "records": [{ "rotation": { "…": "…" } }] }],
-  "arrivals": [{ "statementSha256": "…", "arrivedAt": "…", "receivedBy": "…", "…": "…" }]
+  "arrivals": [{ "cosignatureSha256": "…", "arrivedAt": "…", "receivedBy": "…", "…": "…" }]
 }
 ```
 
-- **`agreement`** is the opened agreement, attachments included, with `originatorSignature`. **`statements`** are the signers' statement records, in the order they were taken. **`keys`** holds the public key behind each signature: the originator's, each identity-signed statement's, each device's delegator and attestor, each key chain's operator, and the arrivals' signer. A device's own key is its delegation's `agentPubKey`. Its JSON Schema is published at [`/schemas/btps-evidence.schema.json`](pathname:///schemas/btps-evidence.schema.json).
-- **`keyChains`** (optional) holds a signing identity's [key chain](./key-rotation.md#in-an-evidence-bundle), with the operator's signed answer that served it, kept whole. A key whose DNS record is retired is in its identity's chain. **`arrivals`** (optional) holds, for a statement, when the bundle's builder received it, signed by the builder then: a time the signer could not set.
-- **`buildEvidenceBundle`** (`@btps/sdk/trust`) makes one from what the originator holds; a signer's platform makes one from its own copy and the records in `agreement_complete`.
-- **`verifyEvidenceBundle`** checks it and reports facts, never a verdict: the content's SHA-256, whether the originator's signature is over it, whether each term is the SHA-256 of an attachment as attached, and, for each statement, whether its signature holds and with which kind of key (and, for a device, who delegated and attested it), whether it names this agreement and its terms, whether it was signed by the deadline, and whether it follows the signers' order. It names the key each signature was checked with, by identity, selector and fingerprint (`originatorKey`, and each statement's `key`, and for a device its `delegationKey`). `complete` says whether every one of those holds and every signer accepted, once. An answer out of order or late is reported as such, and nothing is refused for it. A key in `keys` counts only when its fingerprint is its own. With `keyChains`, each signing key is also reported against its identity's chain (`originatorKeyChain`, each statement's `keyChain`): whether it was in its window when it signed, and whether it was later rotated away or expired; and each statement's `arrival`. **Every key is the bundle's own unless checked online**: `complete` says the bundle is consistent with the keys it carries, not that each key was its identity's when it signed. Given `online`, `verifyEvidenceBundle` confirms each signing key now as its identity's, by its identity's chain anchored online, or by DNS when there is no chain; `keysConfirmedOnline` is true only when every one is. A key chain fact and an online check never change `complete`.
+- **`agreement`** is the opened agreement, attachments included, with `originatorSignature`. **`cosignatures`** are the signers' [cosignatures](#cosignatures), in the order they were taken, as they travelled: a device's with its `delegatedArtifact`. **`statements`** holds each one's opened statement as the exact text it signed: `statements[i]` is the RFC 8785 form of `{ statement, padding }` whose SHA-256 is `cosignatures[i].statementSha256`. **`keys`** holds the public key behind each signature: the originator's, each identity-signed cosignature's, each device's delegator and attestor, each key chain's operator, and the arrivals' signer. A device's own key is its delegation's `agentPubKey`. Its JSON Schema is published at [`/schemas/btps-evidence.schema.json`](pathname:///schemas/btps-evidence.schema.json).
+- **`keyChains`** (optional) holds a signing identity's [key chain](./key-rotation.md#in-an-evidence-bundle), with the operator's signed answer that served it, kept whole. A key whose DNS record is retired is in its identity's chain. **`arrivals`** (optional) holds, for a cosignature, when the bundle's builder received it, signed by the builder then: a time the signer could not set. An arrival names its cosignature by `cosignatureSha256`.
+- **`buildEvidenceBundle`** (`@btps/sdk/trust`) makes one from what the originator holds; a signer's platform makes one from its own copy, the cosignatures in `agreement_complete`, and the statements `decryptVerify` opened from them (`cosigned`).
+- **`verifyEvidenceBundle`** checks it and reports facts, never a verdict: the content's SHA-256, whether the originator's signature is over it, whether each term is the SHA-256 of an attachment as attached, and, for each statement, whether its cosignature's signature holds and with which kind of key (and, for a device, who delegated and attested it), whether its text is exactly the one its cosignature signed (`statementMatches`), whether it names this agreement and its terms, whether it was signed by the deadline, and whether it follows the signers' order. When a statement's text is not the one signed, nothing in it is taken: its `decision` is left out, and its terms and deadline do not hold. What holds of it then (the document it names, its place in the order) is read from its signed cosignature. It names the key each signature was checked with, by identity, selector and fingerprint (`originatorKey`, and each statement's `key`, and for a device its `delegationKey`). `complete` says whether every one of those holds and every signer accepted, once. An answer out of order or late is reported as such, and nothing is refused for it. A key in `keys` counts only when its fingerprint is its own. With `keyChains`, each signing key is also reported against its identity's chain (`originatorKeyChain`, each statement's `keyChain`): whether it was in its window when it signed, and whether it was later rotated away or expired; and each statement's `arrival`. **Every key is the bundle's own unless checked online**: `complete` says the bundle is consistent with the keys it carries, not that each key was its identity's when it signed. Given `online`, `verifyEvidenceBundle` confirms each signing key now as its identity's, by its identity's chain anchored online, or by DNS when there is no chain; `keysConfirmedOnline` is true only when every one is. A key chain fact and an online check never change `complete`.
 - **From the command line:** `npx -p @btps/sdk btps-verify-evidence bundle.json` prints the facts, each key's fingerprint, and whether the keys are confirmed online (`--json` for JSON; `--timestamp-root ca.pem`, repeatable, for the timestamp authorities the reader trusts; `--anchor <fingerprint>`, repeatable, for signing-key fingerprints the reader kept; `--operator <domain>=<fingerprint>`, repeatable, for a domain's operator's fingerprint the reader kept; `--online <identity>`, to check each key now, asking hosts as that identity). It exits `0` when the agreement is complete, `1` when it is not, and `2` when the file is not an evidence bundle.
-- **Trusted timestamps (optional, recommended for agreements).** A provider may add an RFC 3161 timestamp token for a statement: `timestamps: [{ statementSha256, token }]`, where `statementSha256` is the SHA-256 of the statement record's RFC 8785 form and `token` is the DER TimeStampToken, base64. Only that hash is sent to the timestamp authority, never the content (`timestampRequest` builds the request; `timestampTokenOf` takes the token from the authority's reply). A token proves the statement existed by its time, so nobody can make one later and backdate it, and it keeps proving that the signature was made while its key was current after the key rotates; that matters most for a statement signed with a key the provider holds. `verifyEvidenceBundle` reports, for each statement with a token, whether the token's imprint is this statement, whether it is signed by the certificate it carries, its time and authority, whether that certificate is a timestamp authority's (its one extended key usage is `id-kp-timeStamping`, marked critical, as RFC 3161 §2.3 requires), and, given the roots the reader trusts, whether it is trusted: an authority's certificate that chains to one of them or is one of them. A certificate for anything else under a trusted root, such as a TLS server's, is never trusted to timestamp. A timestamp is reported and never changes `complete`. Which authorities to trust is each platform's, and each reader's, choice; getting a token is the platform's job. "Signed by the deadline" is judged by the statement's own `signedAt`, which is the signer's claim; a timestamp from an authority the reader trusts is what gives independent time, its `time` against `acceptance.by`. The reader compares them; it is a fact, and never changes `complete`.
+- **Trusted timestamps (optional, recommended for agreements).** A provider may add an RFC 3161 timestamp token for a statement: `timestamps: [{ cosignatureSha256, token }]`, where `cosignatureSha256` is its cosignature's ([The chain](#the-chain)) and `token` is the DER TimeStampToken, base64. A token is over the cosignature, which binds the statement. Only that hash is sent to the timestamp authority, never the content (`timestampRequest` builds the request; `timestampTokenOf` takes the token from the authority's reply). A token proves the statement existed by its time, so nobody can make one later and backdate it, and it keeps proving that the signature was made while its key was current after the key rotates; that matters most for a statement signed with a key the provider holds. `verifyEvidenceBundle` reports, for each statement with a token, whether the token's imprint is this statement, whether it is signed by the certificate it carries, its time and authority, whether that certificate is a timestamp authority's (its one extended key usage is `id-kp-timeStamping`, marked critical, as RFC 3161 §2.3 requires), and, given the roots the reader trusts, whether it is trusted: an authority's certificate that chains to one of them or is one of them. A certificate for anything else under a trusted root, such as a TLS server's, is never trusted to timestamp. A timestamp is reported and never changes `complete`. Which authorities to trust is each platform's, and each reader's, choice; getting a token is the platform's job. "Signed by the deadline" is judged by the statement's own `signedAt`, which is the signer's claim; a timestamp from an authority the reader trusts is what gives independent time, its `time` against `acceptance.by`. The reader compares them; it is a fact, and never changes `complete`.
 - **What it cannot know offline:** whether each key really was its identity's when it signed, unless the reader kept a fingerprint of one of its identity's keys (an anchor), and whether a device's delegator or attestor is its domain's operator. Both are facts a reader may confirm online, through the identity's key chain and DNS. The bundle embeds the keys, and their chains, so that it checks without.
 - **Privacy, by design.** An agreement only ever travels encrypted to its own signers. A bundle is a file a party chooses to create and disclose; whoever receives it sees everything in it, because a dispute is about exactly that. BTPS never publishes a bundle.
 

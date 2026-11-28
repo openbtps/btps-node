@@ -9,6 +9,7 @@ import type { BTPCryptoOptions } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { Decrypter } from '@core/crypto/decrypter-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import type { BTPCosignature } from '@core/trust/types.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -132,6 +133,12 @@ export type BtpsAgentCommandOptions = BTPCryptoOptions & {
   change?: true;
   /** Since 1.2, on `trust.respond` only, and only when accepting: the permission names granted. */
   granted?: BTPPermissionName[];
+  /**
+   * Since 1.2, on `event.send` only: the cosignatures the event carries, as `cosign` makes them, signed by
+   * whoever signed each: an answer's own (signed on a device with the device key, no `selector`), or those an
+   * originator forwards. Every BTPS server checks them on receipt, as it checks any sender's.
+   */
+  cosignatures?: BTPCosignature[];
   /**
    * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
    * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so

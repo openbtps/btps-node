@@ -14,6 +14,7 @@ export * from './trustUtils.js';
 export * from './permissions.js';
 export * from './verification.js';
 export * from './agreements.js';
+export * from './cosignatures.js';
 export * from './evidence.js';
 export * from './timestamps.js';
 export * from './keyRotation.js';

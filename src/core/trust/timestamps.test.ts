@@ -13,19 +13,20 @@
 import { describe, expect, it } from 'vitest';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
-import { statementRecordSha256 } from './agreements.js';
+import { cosignatureSha256 } from './cosignatures.js';
 import { timestampFacts, timestampRequest, timestampTokenOf } from './timestamps.js';
-import type { BTPStatementRecord } from './types.js';
+import type { BTPCosignature } from './types.js';
 
-const record: BTPStatementRecord = {
-  statement: {
-    agreement: { originator: 'loans$bank.example', id: 'AGR-1', contentSha256: 'a'.repeat(64) },
-    terms: [],
-    signer: 'alice$client.example',
-    decision: 'accepted',
-    signedAt: '2026-11-02T00:00:00.000Z',
-  },
+// What a timestamp is over is a cosignature's hash: its shape here need only be one, not a signed one.
+const record: BTPCosignature = {
+  ref: { originator: 'loans$bank.example', id: 'AGR-1', contentSha256: 'a'.repeat(64) },
+  signer: 'alice$client.example',
   selector: 'btps1',
+  artifactId: '00000000-0000-4000-8000-000000000001',
+  statementSha256: 'b'.repeat(64),
+  recipients: [],
+  encryption: { algorithm: 'aes-256-gcm', iv: 'AA==', authTag: 'AA==' },
+  ciphertext: 'AA==',
   signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
 };
 const GEN_TIME = new Date('2026-11-02T00:05:00.000Z');
@@ -172,19 +173,19 @@ const authority = async (
 };
 
 describe('a trusted timestamp on a statement', () => {
-  it('is asked for by the SHA-256 of the statement record only', async () => {
+  it('is asked for by the SHA-256 of the cosignature only', async () => {
     const der = await timestampRequest(record, { nonce: 42 });
     const request = pkijs.TimeStampReq.fromBER(der);
     expect(request.certReq).toBe(true);
     expect(Buffer.from(request.messageImprint.hashedMessage.getValue()).toString('hex')).toBe(
-      statementRecordSha256(record),
+      cosignatureSha256(record),
     );
   });
 
   it('checks: over this statement, signed, at its time, trusted when its root is given', async () => {
     const tsa = await authority('Test TSA');
-    const token = await timestampTokenOf(await tsa.respond(statementRecordSha256(record)));
-    const sha256 = statementRecordSha256(record);
+    const token = await timestampTokenOf(await tsa.respond(cosignatureSha256(record)));
+    const sha256 = cosignatureSha256(record);
 
     expect(await timestampFacts(token, sha256)).toEqual({
       imprintMatches: true,
@@ -204,14 +205,14 @@ describe('a trusted timestamp on a statement', () => {
     const tsa = await authority('Test TSA');
     const other = await authority('Other TSA');
     const token = await timestampTokenOf(await tsa.respond('b'.repeat(64)));
-    const facts = await timestampFacts(token, statementRecordSha256(record), {
+    const facts = await timestampFacts(token, cosignatureSha256(record), {
       trustedRoots: [other.rootPem],
     });
     expect(facts).toMatchObject({ imprintMatches: false, signatureValid: true, trusted: false });
   });
 
   it('is not trusted when signed by a certificate under the root that is not for time stamping', async () => {
-    const sha256 = statementRecordSha256(record);
+    const sha256 = cosignatureSha256(record);
     // A TLS server's certificate, an authority's with another usage beside, one not critical, and one with none.
     for (const usage of [
       { purposes: ['1.3.6.1.5.5.7.3.1'], critical: false },
@@ -233,7 +234,7 @@ describe('a trusted timestamp on a statement', () => {
   });
 
   it('is unreadable, never an error, when the token is not one', async () => {
-    expect(await timestampFacts('AAAA', statementRecordSha256(record))).toEqual({
+    expect(await timestampFacts('AAAA', cosignatureSha256(record))).toEqual({
       imprintMatches: false,
       signatureValid: false,
     });

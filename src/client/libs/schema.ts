@@ -18,6 +18,7 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
+  BtpCosignatureSchema,
   BtpDetailsNoteDocSchema,
   BtpDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -32,6 +33,8 @@ import {
   ENTITY_TYPES,
 } from '@core/server/constants/permissions.js';
 import type { BTPDetailPermission } from '@core/server/types.js';
+import { BTPS_FIELD_LIMITS } from '@core/server/constants/limits.js';
+import { boundedArray } from '@core/server/schemas/bounded.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -76,6 +79,11 @@ export const BtpsAgentCommandSchema = z.object({
     given: z.array(z.string()).optional(),
     change: z.literal(true).optional(),
     granted: z.array(z.string()).optional(),
+    // Since 1.2: cosignatures, as the transporter artifact carries them; the receiving server checks them.
+    cosignatures: boundedArray(
+      BtpCosignatureSchema,
+      BTPS_FIELD_LIMITS.agreement.signers,
+    ).optional(),
   }).optional(),
 });
 
@@ -154,6 +162,28 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     message: 'details.respond is always encrypted to the requester: options.encryption is required',
     path: ['options', 'encryption'],
   })
+  // Details are never in the clear: a request that gives them, or an answer that grants them,
+  // carries their values, so it is encrypted to its receiver.
+  .refine(
+    (data) =>
+      data.actionType !== 'trust.request' ||
+      !data.options?.given?.length ||
+      data.options?.encryption,
+    {
+      message: 'a trust.request that gives details is encrypted: options.encryption is required',
+      path: ['options', 'encryption'],
+    },
+  )
+  .refine(
+    (data) =>
+      data.actionType !== 'trust.respond' ||
+      !data.options?.granted?.some((name: string) => name.startsWith('detail:')) ||
+      data.options?.encryption,
+    {
+      message: 'a trust.respond that grants details is encrypted: options.encryption is required',
+      path: ['options', 'encryption'],
+    },
+  )
   .refine(
     (data) =>
       data.options?.documentType === undefined ||
@@ -164,6 +194,10 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
       path: ['options', 'documentType'],
     },
   )
+  .refine((data) => data.options?.cosignatures === undefined || data.actionType === 'event.send', {
+    message: 'options.cosignatures is only on event.send: only a BTPS_EVENT carries cosignatures',
+    path: ['options', 'cosignatures'],
+  })
   .refine((data) => data.options?.syncOf === undefined || data.actionType === 'artifact.send', {
     message: 'options.syncOf is only on artifact.send',
     path: ['options', 'syncOf'],

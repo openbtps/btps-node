@@ -80,6 +80,8 @@ try {
     ...(resolver && {
       online: {
         resolveKeyChain: (identity) => resolver.resolveKeyChain(identity),
+        // A key not in DNS (a provider's hosted address) is asked of its host, as a server asks it.
+        keyResolver: resolver,
         // A bundle's signatures are past: no live grace applies, only the chain's facts.
         retiredKeyGraceSeconds: 0,
       },

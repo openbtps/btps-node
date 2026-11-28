@@ -44,6 +44,7 @@ import type {
 } from '../../src/core/server/types.js';
 import type { BTPClientResponse } from '../../src/client/types/index.js';
 import type { BtpsServerOptions, MiddlewareDefinition } from '../../src/server/types.js';
+import { verifyTransporterSignature } from '../../src/core/delegation/verifyTransporterSignature.js';
 import { zone } from './zone.js';
 
 export type Keys = { publicKey: string; privateKey: string };
@@ -348,9 +349,12 @@ export async function deliver(artifact: BTPTransporterArtifact): Promise<BTPClie
 
 /** Opens what arrived for `receiver`, as its platform does when the user views it. */
 export async function open<T>(receiver: User, artifact: BTPTransporterArtifact) {
-  const sender = await import('../../src/core/utils/index.js').then((u) =>
-    u.resolvePublicKey(artifact.from, artifact.selector),
-  );
+  // A device's artifact is signed by the device key its delegation carries, checked as a server checks it.
+  const sender = artifact.delegation
+    ? (await verifyTransporterSignature(artifact)).signerKey
+    : await import('../../src/core/utils/index.js').then((u) =>
+        u.resolvePublicKey(artifact.from, artifact.selector),
+      );
   if (!sender) throw new Error(`no key for ${artifact.from}`);
   return decryptVerify<T>(
     sender,

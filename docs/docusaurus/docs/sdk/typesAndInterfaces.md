@@ -46,7 +46,7 @@ interface BtpsServerOptions {
 
 - `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
 - `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. `serverIdentity` is the domain's operator (for example `admin$saas.example`), the same identity and key that signs identity-lookup answers, so a provider keeps one key pair. Every 1.1 and 1.2 client takes a lookup answer only from the operator, so a `serverIdentity` of any other identity would leave the host unable to answer lookups
-- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, each is looked up in DNS, as before
+- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, the server uses `createDefaultKeyResolver({ from })`, asking as its `serverIdentity`: each key is looked up in DNS, then, only when DNS has no record for it, from its identity's host. A resolver you give is asked in its place, so wrap one given `from` to keep finding keys that are not in DNS
 - `entityTypeOf`: Optional, since 1.2. Whether one of the platform's own addresses is a `person` or an `organisation`, asked when a person's trust request for details arrives for it: a person asking an organisation gives nothing in return, and asking a person gives what it asks for ([You give what you ask for](../features/trustPermissions.md#you-give-what-you-ask-for)). Without it, or when it returns `undefined` or throws, the receiver is held to be a person
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
@@ -303,6 +303,7 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   given?: BTPDetailPermission[]; // trust.request
   change?: true; // trust.request
   granted?: BTPPermissionName[]; // trust.respond
+  cosignatures?: BTPCosignature[]; // since 1.2: event.send only
 };
 
 interface BTPSyncOf {
@@ -316,8 +317,9 @@ interface BTPSyncOf {
 - `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
 - `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
-- `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`
-- `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address
+- `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`. A request with `given` also needs `encryption`: details are never in the clear
+- `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address. An answer granting a `detail:` name also needs `encryption`: details are never in the clear
+- `cosignatures`: Since 1.2, on `event.send` only, and refused elsewhere: the [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures) the event carries on its envelope, 1 to 20, as `cosign` makes them. Whatever the protocol allows: the device's own answer (signed with the device key, no `selector`, its statement's `artifactId` the event's `id`), or, when the device's user is the originator, the cosignatures it forwards. The receiving server checks them as it checks any sender's
 - Each of these is set on the envelope and stamps the artifact `1.2.0`. The built artifact is checked as its provider will check it, so a request that does not give what it asks for, or names a permission that is not the protocol's, is refused before it is sent (`BTP_ERROR_VALIDATION`, naming the rule)
 
 ### BTPConnection
@@ -1267,21 +1269,29 @@ type BTPKeyUse = 'verify' | 'encrypt';
 
 interface BtpsKeyResolver {
   resolvePublicKey(identity: string, selector: string, use: BTPKeyUse): Promise<string | undefined>; // a PEM key
+  resolveKeyChain?(identity: string): Promise<BTPKeyChainLookup>; // optional: the identity's key chain, from its host
 }
 ```
 
-- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer). Without a resolver it is looked up in DNS only.
+- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer), at the selector the signature names. Without a resolver, `BtpsServer` and `BtpsAgent.openResult` find it as `createDefaultKeyResolver({ from })` does: in DNS, then from the identity's host. Elsewhere (a client checking a signed answer, `verifyTransporterSignature`, `BtpsDelegator`, an online evidence check), it is looked up in DNS only.
 - `encrypt`: a receiver's key. Without a resolver it is looked up in DNS, then from the receiver's host. With one, the resolver is asked in place of DNS, and the host is still asked when it has no key.
 - `_btps.host` records are not keys and stay outside the resolver. A local caching DNS resolver covers them.
 
-`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity.
+`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. `from` is the asker's own identity, and `btpMtsOptions` the TLS options for the connection to a host.
 
-A cache in front of DNS. Without `from` it never asks a host: BTPS asks the receiver's host itself after the resolver has no key, so wrapping DNS alone is enough.
+| Given `from`?    | `verify` and `encrypt`                                                                                                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| yes              | DNS first, then, only when DNS has no record for the key, the identity's host, in an answer its domain's operator signed. For `verify`, only the host's key at the signature's selector is taken |
+| no               | DNS only                                                                                                                                                                                     |
+
+A DNS failure other than "no such record" never leads to asking the host. A domain's operator's key is found in DNS only: no host vouches for it ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)).
+
+A cache in front of the default lookup, for a server. Given `from`, signature keys not in DNS are still found through their hosts:
 
 ```ts
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
 
-const lookup = createDefaultKeyResolver();
+const lookup = createDefaultKeyResolver({ from: 'admin$saas.example' }); // your server's own identity
 const keys = new Map<string, { pem: string; until: number }>();
 const keyResolver: BtpsKeyResolver = {
   async resolvePublicKey(identity, selector, use) {
@@ -1298,7 +1308,8 @@ const keyResolver: BtpsKeyResolver = {
 
 - **Keys outlive rotations.** A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
 - **Don't cache a miss for long, or at all.** Otherwise a key published after the lookup stays "not found" for as long as the miss is kept.
-- **With `from`, a miss asks the host twice.** Wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
+- **Without `from`, signature keys are DNS's alone.** A server given a resolver asks it in place of its own lookup. A resolver that wraps `createDefaultKeyResolver()` without `from` finds no signature key that is not in DNS, and a signature by a hosted identity is refused (`BTP_ERROR_RESOLVE_PUBKEY`).
+- **With `from`, a miss to encrypt to asks the host twice.** On a client, wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
 
 ### BTPSigningKey and BTPDecryptionKey
 
@@ -1504,9 +1515,10 @@ type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
   terms: string[];
   signer: string;
+  artifactId: string; // the artifact that first delivers it (a device's: its delegated artifact)
   decision: 'accepted' | 'declined';
   signedAt: string;
-  previous?: string; // in a sequential agreement: the SHA-256 of the record before it
+  previous?: string; // in a sequential agreement: the cosignatureSha256 of the cosignature before it
   visualSignature?: BTPVisualSignature; // on an acceptance only
   consent?: BTPElectronicConsent; // on an acceptance only
   viewedAt?: string; // when the signer first viewed the agreement, no later than signedAt
@@ -1540,39 +1552,64 @@ type BTPSigningDevice = {
   id?: string;
 };
 
-// Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
-type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
-  | { selector: string }
-  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation } }
+// Since 1.2: a signer's statement as a BTPS_EVENT carries it, outside its encrypted document.
+// The statement (RFC 8785 of { statement, padding }) is encrypted once to every recipient, and the
+// signer signs the rest over that ciphertext: every BTPS server checks it on receipt (cosignaturesProblem).
+// See Cosignatures on the Transporter Artifact page.
+type BTPCosignature = {
+  ref: BTPAgreementRef; // the agreement it answers
+  signer: string;
+  artifactId: string; // the artifact that first delivers it
+  previous?: string; // the cosignatureSha256 of the cosignature before it
+  statementSha256: string; // the SHA-256 of the encrypted statement's exact text
+  recipients: BTPCosignatureRecipient[]; // the originator and every signer
+  encryption: { algorithm: 'aes-256-gcm'; iv: string; authTag: string };
+  ciphertext: string; // base64, at most 262,144 characters
+  signature: BTPSignature; // over all of it but signature and delegatedArtifact
+} & (
+  | { selector: string; delegatedArtifact?: never } // signed by the signer's identity key
+  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation }; selector?: never } // a device's, as forwarded
+  | { selector?: never; delegatedArtifact?: never } // a device's, in the delegated artifact that first delivers it
 );
 
-interface BTPStatementSignatureFacts {
-  signatureValid: boolean;
-  keyKind: 'identity' | 'device';
-  delegatedBy?: string; // a device's delegator
-  attestedBy?: string; // and its attestor, if any
-}
+// One party a cosignature's statement is encrypted to
+type BTPCosignatureRecipient = {
+  identity: string;
+  fingerprint: string; // the SHA-256 fingerprint of the key it is wrapped to
+  wrappedKey: string; // the content key, RSA-OAEP-wrapped to that key, base64
+};
+
+// cosignaturesProblem's key lookup: the public key (PEM) of identity at selector whose fingerprint is fingerprint.
+// forwarded: an earlier artifact first delivered the cosignature, so take its key by its history
+type BTPCosignatureKeyOf = (
+  identity: string,
+  selector: string,
+  fingerprint: string,
+  forwarded: boolean,
+) => Promise<string | undefined>;
 
 // A public key by identity and selector: from DNS, a store, or an evidence bundle
 type BTPKeyOf = (identity: string, selector: string) => string | undefined;
 
-// An agreement's signers, how they answer, and the answers its originator's platform has taken
+// An agreement's signers, how they answer, and the answers its originator's platform has taken,
+// each by its cosignatureSha256
 type BTPAgreementAnswers = {
   signers: string[];
   signingOrder: 'any' | 'sequential';
   answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
 };
 
-// What a BTPS_EVENT carries for an agreement: an answer, or statements forwarded by its originator
+// What a BTPS_EVENT carries for an agreement: an answer, or its originator's forward.
+// Its statements are not in it: they travel as the artifact's cosignatures.
 type BTPAgreementEvent = {
   type: 'agreement_event';
   id: string;
   occurredAt: string;
   agreement: BTPAgreementRef;
 } & (
-  | { eventType: 'accepted'; statement: BTPStatementRecord }
-  | { eventType: 'declined'; statement: BTPStatementRecord; message?: BTPNote }
-  | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
+  | { eventType: 'accepted' }
+  | { eventType: 'declined'; message?: BTPNote }
+  | { eventType: 'agreement_progress' | 'agreement_complete' }
 );
 
 // Since 1.2: see The evidence bundle on the Transporter Artifact page
@@ -1580,9 +1617,12 @@ type BTPEvidenceBundle = {
   format: 'btps-evidence/1';
   originator: string;
   agreement: BTPAgreementDoc;
-  statements: BTPStatementRecord[];
+  cosignatures: BTPCosignature[]; // as they travelled, in order
+  statements: string[]; // statements[i] is cosignatures[i]'s opened statement, as the exact text it signed
   keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
-  timestamps?: { statementSha256: string; token: string }[]; // RFC 3161 tokens, base64
+  timestamps?: { cosignatureSha256: string; token: string }[]; // RFC 3161 tokens, base64
+  keyChains?: BTPEvidenceKeyChain[];
+  arrivals?: BTPEvidenceArrival[];
 };
 
 // What verifyEvidenceBundle reports: facts, never a verdict
@@ -1592,17 +1632,24 @@ type BTPEvidenceFacts = {
   originatorKey: BTPEvidenceKey; // the key it was checked with, from the bundle
   keysConfirmedOnline: false; // every key is the bundle's own, never looked up online
   termsAttached: boolean;
-  statements: (BTPStatementSignatureFacts & {
+  statements: {
+    signatureValid: boolean; // its cosignature is signed by its signer's key, or a device its delegation vouches for
+    keyKind: 'identity' | 'device';
+    delegatedBy?: string; // a device's delegator
+    attestedBy?: string; // and its attestor, if any
+    statementMatches: boolean; // its text is exactly the one its cosignature signed
     signer: string;
-    decision: 'accepted' | 'declined';
+    decision?: 'accepted' | 'declined'; // absent when its text is not the one signed
     key: BTPEvidenceKey; // the signer's identity key, or its device's key
     delegationKey?: BTPEvidenceKey; // for a device: the key its delegation was checked with
     agreementMatches: boolean;
-    termsMatch: boolean;
-    withinDeadline: boolean;
+    termsMatch: boolean; // false when its text is not the one signed
+    withinDeadline: boolean; // false when its text is not the one signed
     inOrder: boolean;
     timestamp?: BTPTimestampFacts; // when the bundle has a token for it
-  })[];
+    arrival?: { at: string; receivedBy: string; signatureValid: boolean };
+    keyChain?: BTPEvidenceKeyChainFacts;
+  }[];
   complete: boolean; // every fact holds against the bundle's own keys, and every signer accepted, once; never a timestamp
 };
 
@@ -1611,7 +1658,7 @@ type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: strin
 
 // What an RFC 3161 token shows about its statement
 type BTPTimestampFacts = {
-  imprintMatches: boolean;
+  imprintMatches: boolean; // its imprint is the statement's cosignatureSha256
   signatureValid: boolean;
   time?: string;
   authority?: string;
@@ -1706,6 +1753,7 @@ interface BTPTransporterArtifact {
   change?: true; // TRUST_REQ: a change to an active trust
   granted?: BTPPermissionName[]; // accepted TRUST_RES: the names given
   documentType?: BTPDocumentType; // BTPS_DOC under a trust with permissions
+  cosignatures?: BTPCosignature[]; // since 1.2, a 1.2.0 BTPS_EVENT only: signed statements, 1 to 20, checked on receipt
 }
 ```
 
@@ -1935,10 +1983,11 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
 }
 
 interface BTPAgentKey {
-  key: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64
+  key?: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64; absent only for an unencrypted artifact with cosignatures
+  cosignatureKeys?: (string | null)[]; // since 1.2: each cosignature's content key, wrapped the same way, by position; null where the identity is not a recipient
   fingerprint: string; // the device key it is wrapped to, as the device's record holds it
   wrappedAt: string; // ISO 8601
-}
+} // at least one of key and cosignatureKeys
 
 interface BTPDelivery {
   status: 'pending' | 'delivered' | 'failed';
@@ -1947,7 +1996,7 @@ interface BTPDelivery {
 }
 ```
 
-`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). The artifact is untouched, so its signature still verifies. No other key is allowed in it.
+`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). Since 1.2, `cosignatureKeys` does the same for the statements in the artifact's cosignatures, so the device opens those addressed to its identity. The artifact is untouched, so its signature still verifies. No other key is allowed in it.
 
 `delivery` (since 1.2) is a send's outcome by its sender's provider's own record, with no receipt from the receiver. No other key is allowed in it.
 
@@ -2449,6 +2498,7 @@ interface BTPCryptoResponse<T = BTPDocType> {
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
   boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
+  cosigned?: (BTPAgreementStatement | null)[]; // since 1.2: from decryptVerify, each cosignature's statement by position, null where the receiver is not a recipient
 }
 ```
 
@@ -2898,7 +2948,7 @@ type BTPEvidenceKeyChain = {
 
 // When the bundle's builder received a statement, signed by it then (signArrival)
 type BTPEvidenceArrival = {
-  statementSha256: string;
+  cosignatureSha256: string; // the statement's cosignature, by its hash
   arrivedAt: string;
   receivedBy: string;
   selector: string;

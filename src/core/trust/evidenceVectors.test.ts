@@ -19,7 +19,7 @@ import {
   verifyEvidenceBundle,
   type BTPEvidenceBundle,
 } from './evidence.js';
-import type { BTPStatementRecord } from './types.js';
+import type { BTPAgreementStatement, BTPCosignature } from './types.js';
 
 type Case = {
   name: string;
@@ -39,6 +39,11 @@ const named = (name: string) => {
   if (!found) throw new Error(`no vector ${name}`);
   return found;
 };
+/** Each cosignature's statement, from the exact text a bundle keeps of it. */
+const statementsOf = (bundle: BTPEvidenceBundle): BTPAgreementStatement[] =>
+  bundle.statements.map(
+    (text) => (JSON.parse(text) as { statement: BTPAgreementStatement }).statement,
+  );
 const keyOfBundle =
   (bundle: BTPEvidenceBundle) =>
   (identity: string, selector: string): string | undefined =>
@@ -79,23 +84,30 @@ describe('the golden vectors’ evidence bundles', () => {
     );
   });
 
-  it('are built again from their agreement and records, a device’s delegator’s key included', () => {
+  it('are built again from their agreement and cosignatures, a device’s delegator’s key included', () => {
     const { bundle } = named('complete-with-a-device-signed-acceptance');
     const rebuilt = buildEvidenceBundle(
-      { originator: bundle.originator, agreement: bundle.agreement, statements: bundle.statements },
+      {
+        originator: bundle.originator,
+        agreement: bundle.agreement,
+        cosignatures: bundle.cosignatures,
+        statements: statementsOf(bundle),
+      },
       keyOfBundle(bundle),
     );
+    // The statements' texts are kept exactly as they were signed.
+    expect(rebuilt.statements).toEqual(bundle.statements);
     // Only the keys its signatures need: the vector's bundle carries every party's.
     const inVector = new Set(bundle.keys.map((k) => `${k.identity} ${k.selector}`));
     expect(rebuilt.keys.every((k) => inVector.has(`${k.identity} ${k.selector}`))).toBe(true);
-    const delegator = bundle.statements.find((r) => r.delegatedArtifact)?.delegatedArtifact
+    const delegator = bundle.cosignatures.find((c) => c.delegatedArtifact)?.delegatedArtifact
       ?.delegation.signedBy;
     expect(rebuilt.keys.some((k) => k.identity === delegator)).toBe(true);
   });
 
   it('are built with an attested device’s attestor’s key too', () => {
     const { bundle } = named('complete-with-a-device-signed-acceptance');
-    const [byDevice, ...rest] = bundle.statements;
+    const [byDevice, ...rest] = bundle.cosignatures;
     const delegated = byDevice?.delegatedArtifact;
     if (!byDevice || !delegated) throw new Error('the vector names a device first');
     const attestor = bundle.originator;
@@ -113,13 +125,14 @@ describe('the golden vectors’ evidence bundles', () => {
           },
         },
       },
-    } as BTPStatementRecord;
+    } as BTPCosignature;
 
     const rebuilt = buildEvidenceBundle(
       {
         originator: bundle.originator,
         agreement: bundle.agreement,
-        statements: [attested, ...rest],
+        cosignatures: [attested, ...rest],
+        statements: statementsOf(bundle),
       },
       keyOfBundle(bundle),
     );
@@ -147,12 +160,12 @@ describe('a bundle with a key no reader can use', () => {
 
   it('names no fingerprint for a device key that is not a public key', async () => {
     const { bundle } = named('complete-with-a-device-signed-acceptance');
-    const [byDevice, ...rest] = bundle.statements;
+    const [byDevice, ...rest] = bundle.cosignatures;
     const delegated = byDevice?.delegatedArtifact;
     if (!byDevice || !delegated) throw new Error('the vector names a device first');
     const broken = {
       ...bundle,
-      statements: [
+      cosignatures: [
         {
           ...byDevice,
           delegatedArtifact: {
@@ -167,6 +180,6 @@ describe('a bundle with a key no reader can use', () => {
     const facts = await verifyEvidenceBundle(broken);
 
     expect(facts.statements[0]?.signatureValid).toBe(false);
-    expect(facts.statements[0]?.key).toEqual({ identity: byDevice.statement.signer });
+    expect(facts.statements[0]?.key).toEqual({ identity: byDevice.signer });
   });
 });

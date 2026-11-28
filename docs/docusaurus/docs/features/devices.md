@@ -26,10 +26,17 @@ sequenceDiagram
     autonumber
     participant D as Device
     participant P as Provider
+    participant H as The sender's host
     D->>P: inbox.fetch
     P->>P: wrapForAgent(artifact, the user's decrypter, the device's trust record)
     P-->>D: results: { artifact, agentKey: { key, fingerprint, wrappedAt } }
-    D->>D: openResult(entry): the key is its own, who signed is checked as a server would, decrypt
+    D->>D: openResult(entry): the key is its own
+    D->>D: the sender's key, from DNS
+    opt DNS has no record for it
+        D->>H: identity lookup, as the user, at the signature's selector
+        H-->>D: the key, in an answer the domain's operator signed
+    end
+    D->>D: who signed is checked with a server's signature steps, no key chain, decrypt
 ```
 
 ```json btps=response
@@ -89,7 +96,7 @@ const identityDecrypter = new PemDecrypter({ privateKey: userPrivateKey }); // o
 const device = await trustStore.getById(computeAgentTrustId(artifact.agentId, user));
 const results = await Promise.all(
   inbox.map(async (received) =>
-    received.encryption && device
+    (received.encryption || received.cosignatures) && device
       ? { artifact: received, agentKey: await wrapForAgent(received, identityDecrypter, device) }
       : { artifact: received },
   ),
@@ -107,6 +114,15 @@ for (const entry of response.document.results) {
 ```
 
 `openResult` refuses a key wrapped to another device key: a device that has just rotated finishes moving to its new key first.
+
+`openResult` finds each signing key as a server does: from the agent's `keyResolver` when it has one, else in DNS, then, when DNS has no record for it, from the signer's host, asking as the agent's own identity ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)). So a document from a hosted sender, whose key is not in DNS, opens on the device too. Unlike a server, the device checks no key chain: a key rotated away or expired is refused only once DNS or the host no longer gives it ([Checking keys on arrival](../protocol/specifications/key-rotation.md#checking-keys-on-arrival)).
+
+### Cosignatures on a device
+
+Since 1.2. An agreement's statements travel as [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures), each encrypted to its recipients' identity keys. A device sends and opens them with its own key, as it does documents.
+
+- **Opening.** `wrapForAgent` wraps each cosignature's content key again to the device key, in `agentKey.cosignatureKeys`, by position: `null` where the user is not one of that cosignature's recipients. Its fourth argument says whose keys to wrap: the artifact's `to` by default, or its `from` for an artifact the user sent. An unencrypted artifact that carries cosignatures gets an `agentKey` with `cosignatureKeys` alone. `openResult` then gives the statements in `cosigned`, each held to exactly what was signed. A cosignature addressed to the user with no key for it is refused, never skipped.
+- **Sending.** `event.send` takes `options.cosignatures`, 1 to 20: whatever the protocol allows the sender to carry. That is the device's own answer, made with `cosign` and the device key (`pemFiles`, or a keystore's `signer`, with no `selector`), whose statement's `artifactId` is the event's `id`. When the user is the agreement's originator, it is instead the cosignatures it forwards, each one that came from a device with its `delegatedArtifact`. The receiving server checks them as it checks any sender's. [The agent's `event.send`](../client/btpsAgent/commands.md) shows the call.
 
 ## Signed answers, and a device that requires them
 

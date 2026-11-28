@@ -21,7 +21,7 @@ slug: key-rotation
 | **Stored documents**         | a side-car opens each one with the new key, so the old private key can be deleted                                         |
 | **Evidence**                 | a bundle keeps each signer's chain, so a reader sees when each key was valid, years later                                 |
 
-**Nothing changes until an identity rotates.** An identity that never rotated has no chain, and its key is checked by DNS, as in 1.1.
+**Nothing changes until an identity rotates.** An identity that never rotated has no chain, and its key is checked as it is found: in DNS, as in 1.1, or, when DNS has no record for it, from its host ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)).
 
 ## The flow
 
@@ -263,7 +263,7 @@ export async function sidecarsFor(
 
 The security suite (`tests/security/keyRotation.security.test.ts`) attacks running servers over TLS with each of these: a fabricated, forked or rule-breaking chain, a replayed lookup answer, a stolen key before and after its rotation (as a signer, a delegator and an attestor), DNS that fails, a chain at and past its length limit, a host that hides its chain, and a forged authority in an evidence bundle. Each is refused, with nothing delivered.
 
-A host serves the chain it stores exactly as stored, valid or not: a fork, a loop or a broken record included. Whether a chain holds is the receiver's to decide, and it refuses one that doesn't. A host that cannot be reached, or hides its chain, leaves the key to DNS, as in 1.1, which is why an expired key's DNS record is removed at once.
+A host serves the chain it stores exactly as stored, valid or not: a fork, a loop or a broken record included. Whether a chain holds is the receiver's to decide, and it refuses one that doesn't. A host that cannot be reached, or hides its chain, leaves a key in DNS to DNS, as in 1.1, which is why an expired key's DNS record is removed at once.
 
 ## Protocol and platform
 

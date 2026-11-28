@@ -38,7 +38,7 @@ cases.
 | `responses.vectors.json`              | 15                | (1.2) accept and refuse each server response's `status.retryAfter` and `status.closing`                                                                                                                                                                                                                                                                     |
 | `trust-permissions.vectors.json`      | 102               | (1.2) accept and refuse each trust request, answer and send by its permission names; check an opened request's or answer's values against its names, an answer's `granted` against the requester's trust record, and a send's `documentType` against the receiver's                                                                                         |
 | `details.vectors.json`                | 34                | (1.2) accept and refuse each details notice, request and response, by its envelope and against the receiver's trust record and the request a response names                                                                                                                                                                                                 |
-| `agreements.vectors.json`             | 103               | (1.2) accept and refuse each agreement, answer and envelope, the statement's `visualSignature`, `consent`, `viewedAt`, `viewedFrom` and `signedFrom` among them; reproduce an agreement's `contentSha256` and a statement record's hash; check each answer against its agreement and the answers before it; and report each evidence bundle's facts offline |
+| `agreements.vectors.json`             | 134               | (1.2) accept and refuse each agreement, answer, envelope and opened statement, its rules among them; check cosignatures as a server does on receipt, and open one as its recipient; reproduce `contentSha256` and `cosignatureSha256`; check each answer against its agreement and the answers taken before it; report each evidence bundle's facts offline |
 | `key-rotation.vectors.json`           | 39                | (1.2) report each [key chain](./key-rotation.md)'s facts (keys and their windows, forks, anchors, a lost key's authority) and refuse each record or chain that breaks a rule; reproduce a record's `prev` hash                                                                                                                                              |
 | `key-signers.vectors.json`            | 6                 | (1.2) take a live artifact signed by a chain's current key or a key within its grace, and refuse one signed by a retired key (`BTP_ERROR_KEY_RETIRED`) or an expired one (`BTP_ERROR_KEY_REVOKED`)                                                                                                                                                          |
 | `boundview.vectors.json`              | 35                | (1.2) `cases`: for each well-formed [BoundView](./boundview/overview.md), whether a receiver shows it (`expect.show`) and each [check](./boundview/checks.md) it fails (`expect.problems`: `keyFacts`, `shownInFull` or `notHidden`, with its `field` or `element`, in any order); `written`: a bound value, its binding and the exact string drawn         |
@@ -61,9 +61,9 @@ btps-node runs them on Node and on WebCrypto, and against the SDK itself:
 yarn verify:btps-vectors
 ```
 
-In 1.2.0-rc.3.3 that is 797 checks, every one passing:
+In 1.2 that is 828 checks, every one passing:
 
-- 668 protocol cases, counted per file in the table above;
+- 699 protocol cases, counted per file in the table above;
 - 72 cryptography checks, 36 on Node and 36 on WebCrypto: canonical forms, keys, signatures, key wraps, the signed artifacts and the device key proof;
 - 6 checks that each runtime verifies and unwraps what the other made, and 3 that the OAEP vectors are what they say;
 - 20 checks of the SDK itself: selectors, GCM tags, identities, managed and self-held signatures, and KMS wraps;

@@ -7,6 +7,7 @@
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import {
+  BTPCosignature,
   BTPDetailValues,
   BTPKeyChainRecord,
   BTPTrustReqDoc,
@@ -187,6 +188,12 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   documentType?: BTPDocumentType;
   /** Since 1.2, on a DETAILS_CHANGED, DETAILS_REQ or DETAILS_RES: the details it is about, by name. */
   details?: BTPDetailPermission[];
+  /**
+   * Since 1.2, on a BTPS_EVENT only: parties' signed statements about the document it relates to, outside its
+   * encrypted document, in order. Every BTPS server checks each on receipt, without decrypting. An agreement's answer
+   * carries exactly its own signer's; its originator's forwards carry those it forwards.
+   */
+  cosignatures?: BTPCosignature[];
 }
 
 export type BTPDocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -266,8 +273,13 @@ export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFai
  * identity's key. The artifact itself is untouched, so its signature still verifies.
  */
 export interface BTPAgentKey {
-  /** The wrapped content key, base64 */
-  key: string;
+  /** The wrapped content key, base64. Absent only for an unencrypted artifact whose cosignatures are wrapped. */
+  key?: string;
+  /**
+   * Since 1.2: each cosignature's content key, wrapped to the same device key, by position; null for one the
+   * identity is not a recipient of. The device opens the statements with them as `decryptVerify`'s `cosignatureKeys`.
+   */
+  cosignatureKeys?: (string | null)[];
   /** The fingerprint of the device key it is wrapped to, as the device's record holds it */
   fingerprint: string;
   /** When it was wrapped, as an ISO 8601 timestamp */

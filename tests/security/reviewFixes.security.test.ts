@@ -29,7 +29,8 @@ import {
   BTP_ERROR_VALIDATION,
 } from '../../src/core/error/index.js';
 import { computeAgentTrustId } from '../../src/core/trust/trustUtils.js';
-import { agreementRef, signAgreement, signStatement } from '../../src/core/trust/agreements.js';
+import { agreementRef, signAgreement } from '../../src/core/trust/agreements.js';
+import { cosign } from '../../src/core/trust/cosignatures.js';
 import { buildEvidenceBundle } from '../../src/core/trust/evidence.js';
 import type { BTPAuthReqDoc, BTPServerResponse } from '../../src/core/server/types.js';
 import {
@@ -288,24 +289,31 @@ describe('the 1.2 security review, attacked over the wire', () => {
           type: 'agreement',
           title: 'Loan',
           id: 'AGR-1',
+          salt: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
           issuedAt: '2026-11-01T00:00:00.000Z',
           body: { format: 'text', content: 'A loan.' },
           acceptance: { terms: [], signers: [{ address: ALICE }], signingOrder: 'any' },
         },
         { originator: BANK, selector: 'btps1', pemFiles: forger.bank },
       );
-      const statement = await signStatement(
-        {
-          agreement: agreementRef(agreement, BANK),
-          terms: [],
-          signer: ALICE,
-          decision: 'accepted',
-          signedAt: '2026-11-02T00:00:00.000Z',
-        },
-        { selector: 'btps1', pemFiles: forger.alice },
-      );
+      const said = {
+        agreement: agreementRef(agreement, BANK),
+        terms: [],
+        signer: ALICE,
+        decision: 'accepted' as const,
+        signedAt: '2026-11-02T00:00:00.000Z',
+        artifactId: '00000000-0000-4000-8000-0000000000a1',
+      };
+      const statement = await cosign({
+        statement: said,
+        recipients: [
+          { identity: said.agreement.originator, publicKey: forger.bank.publicKey },
+          { identity: ALICE, publicKey: forger.alice.publicKey },
+        ],
+        by: { selector: 'btps1', pemFiles: forger.alice },
+      });
       const bundle = buildEvidenceBundle(
-        { originator: BANK, agreement, statements: [statement] },
+        { originator: BANK, agreement, cosignatures: [statement], statements: [said] },
         (identity) => (identity === BANK ? forger.bank : forger.alice).publicKey,
       );
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'btps-forged-'));
