@@ -23,7 +23,7 @@ The **BTPS Client SDK** (`BtpsClient`) enables you to send secure, trust-based b
 - **Concurrent sends**: Up to `maxQueue` sends wait for their answers on one connection; one more is answered at once with an error
 - **Comprehensive error handling**: Categorizes and surfaces connection, protocol, and application errors
 - **Simple API**: Call `send()` with your artifact; the client connects, and reconnects, on its own
-- **Since 1.2**: asks a server which version it speaks (`getServerVersion`), can require every answer to be signed by its provider (`requireSignedBy`), and finds keys through a `keyResolver` in place of DNS when given one
+- **Since 1.2**: asks a server which version it speaks (`getServerVersion`), can require every answer to be signed by its provider (`requireSignedBy`), finds keys through a `keyResolver` in place of DNS when given one, and reads a large answer in time that grows with its size (`BtpsLineFramer`, or your own through `lineFramer`)
 
 ## Protocol Flow
 

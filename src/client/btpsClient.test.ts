@@ -7,10 +7,16 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
-import tls from 'tls';
-import split2 from 'split2';
+import tls, { type TLSSocket } from 'tls';
+import type { Writable } from 'stream';
 import { BtpsClient } from './btpsClient.js';
-import { BTPErrorException, BTP_ERROR_CONNECTION_CLOSED } from '../core/error/index.js';
+import {
+  BTPErrorException,
+  BTP_ERROR_ARTIFACT_TOO_LARGE,
+  BTP_ERROR_CONNECTION_CLOSED,
+  BTP_ERROR_LINE_FRAMER_OPTIONS,
+} from '../core/error/index.js';
+import { BtpsLineFramer } from '../core/framing/index.js';
 import * as utils from '../core/utils/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 import type { BTPClientOptions } from './types/index.js';
@@ -18,12 +24,10 @@ import type { BTPArtifact } from '../core/server/types.js';
 
 // --- Mocks ---
 vi.mock('tls');
-vi.mock('split2');
 vi.mock('../core/utils/index');
 
 const mockTls = vi.mocked(tls);
 const mockUtils = vi.mocked(utils);
-const mockSplit2 = vi.fn();
 
 describe('BtpsClient', () => {
   let client: BtpsClient;
@@ -77,8 +81,6 @@ describe('BtpsClient', () => {
 
     // Mock tls.connect to return socket immediately
     (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockSocket);
-
-    (split2 as unknown as typeof mockSplit2).mockReturnValue(mockStream);
 
     mockOptions = {
       to: 'test$example.com',
@@ -141,6 +143,43 @@ describe('BtpsClient', () => {
       expect(() => {
         new BtpsClient({ ...mockOptions, to: undefined as unknown as string });
       }).toThrow(BTPErrorException);
+    });
+  });
+
+  describe('line framing', () => {
+    const attach = (options: BTPClientOptions): { framed: Writable; framing: BtpsClient } => {
+      const framing = new BtpsClient(options);
+      framing['attachListeners'](mockSocket as unknown as TLSSocket);
+      const framed = (mockSocket.pipe as ReturnType<typeof vi.fn>).mock.calls.at(
+        -1,
+      )?.[0] as Writable;
+      return { framed, framing };
+    };
+
+    it('ends the connection with BTP_ERROR_ARTIFACT_TOO_LARGE when a given framer finds an answer too large', () => {
+      const { framed, framing } = attach({
+        ...mockOptions,
+        lineFramer: () => BtpsLineFramer.utf8({ maxLineBytes: 8 }),
+      });
+      framed.write(Buffer.from('0123456789'));
+      expect(mockSocket.destroy).toHaveBeenCalledWith(
+        expect.objectContaining({ code: BTP_ERROR_ARTIFACT_TOO_LARGE.code }),
+      );
+      framing.destroy();
+    });
+
+    it('ends the connection with why when a given framer cannot be made', async () => {
+      const { framing } = attach({
+        ...mockOptions,
+        lineFramer: () => {
+          throw new BTPErrorException(BTP_ERROR_LINE_FRAMER_OPTIONS);
+        },
+      });
+      await Promise.resolve();
+      expect(mockSocket.destroy).toHaveBeenCalledWith(
+        expect.objectContaining({ code: BTP_ERROR_LINE_FRAMER_OPTIONS.code }),
+      );
+      framing.destroy();
     });
   });
 

@@ -409,6 +409,56 @@ const canDelegate = isDelegationAllowed(artifact, operator);
 
 ---
 
+### lineFramerStream
+
+```ts
+lineFramerStream<T>(framer: BTPLineFramer<T>, options?: BTPLineFramerStreamOptions): Transform
+```
+
+**Description:**
+Since 1.2. Puts a line framer on a Node stream. Bytes are written to it, and each line comes out as one object, decoded as the framer decodes it. When the input ends, the last line comes out too, if it had no delimiter after it. It never throws: a line over the framer's limit calls `onOverflow` once, and every byte after it is taken and dropped. The server and the client read every connection through it. See [Line Framing Types](./typesAndInterfaces.md#line-framing-types-btpssdk).
+
+**Arguments:**
+
+- `framer` ([`BTPLineFramer<T>`](./typesAndInterfaces.md#btplineframer), required): The framer, such as a [BtpsLineFramer](./classApiReference.md#btpslineframer). Any implementation works.
+- `options` ([`BTPLineFramerStreamOptions`](./typesAndInterfaces.md#btplineframerstreamoptions), optional): `onOverflow`, called once when a line passes the limit.
+
+**Returns:**
+
+- `Transform`: a stream with bytes in and one object per line out. Use it with `stream.pipeline`, or pipe a socket into it.
+
+**Example:**
+
+```ts check
+import { createReadStream } from 'fs';
+import { Writable } from 'stream';
+import { pipeline } from 'stream/promises';
+import { BtpsLineFramer, lineFramerStream } from '@btps/sdk';
+
+// Reads a file of artifacts, one JSON artifact to a line, as a server reads a connection.
+export async function readArtifactLines(
+  file: string,
+  maxLineBytes: number,
+): Promise<{ lines: string[]; tooLarge: boolean }> {
+  const lines: string[] = [];
+  let tooLarge = false;
+  await pipeline(
+    createReadStream(file),
+    lineFramerStream(BtpsLineFramer.utf8({ maxLineBytes }), { onOverflow: () => (tooLarge = true) }),
+    new Writable({
+      objectMode: true,
+      write(line: string, _encoding, callback) {
+        lines.push(line);
+        callback();
+      },
+    }),
+  );
+  return { lines, tooLarge }; // with tooLarge, the lines before the one too large
+}
+```
+
+---
+
 ## Cryptography (`@btps/sdk/crypto`)
 
 ### signEncrypt
@@ -2810,6 +2860,22 @@ Error constant for an artifact larger than the receiving server's limit (`maxArt
 
 - `code`: `'BTP_ERROR_ARTIFACT_TOO_LARGE'`
 - `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 5120 KB'`
+
+---
+
+### BTP_ERROR_LINE_FRAMER_OPTIONS
+
+```ts
+const BTP_ERROR_LINE_FRAMER_OPTIONS: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a [BtpsLineFramer](./classApiReference.md#btpslineframer) given options it cannot work with: a `decode` that is not a function, a `maxLineBytes` that is not a whole number above 0 (or `Infinity`), or a `delimiter` that is not one byte. The constructor and `BtpsLineFramer.utf8` throw it, with the reason appended to the message, when the framer is made.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_LINE_FRAMER_OPTIONS'`
+- `message`: `'Line framer options are not usable'`, thrown as for example `'Line framer options are not usable: maxLineBytes must be a whole number above 0'`
 
 ---
 

@@ -9,6 +9,7 @@ import type { BTPCryptoOptions } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { Decrypter } from '@core/crypto/decrypter-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import type { BTPLineFramerFactory } from '@core/framing/types.js';
 import type { BTPCosignature } from '@core/trust/types.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
@@ -62,6 +63,11 @@ export interface BTPClientOptions {
    * Without it, each is looked up in DNS, as before.
    */
   keyResolver?: BtpsKeyResolver;
+  /**
+   * Since 1.2: makes the line framer each connection's answers are cut with. `BtpsLineFramer.utf8`,
+   * with no limit, when not given: a server's answer may carry what an agent fetches.
+   */
+  lineFramer?: BTPLineFramerFactory;
   version?: string;
   port?: number;
   maxQueue?: number;

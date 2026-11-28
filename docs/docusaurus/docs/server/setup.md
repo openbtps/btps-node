@@ -83,6 +83,7 @@ The `BtpsServer` class accepts the following options:
 | `maxConsecutiveInvalidLines` | `number`                | No       | Since 1.2: unreadable lines in a row before the connection is ended (default: 10)                                                                                     |
 | `retiredKeyGraceSeconds`     | `number`                | No       | Since 1.2: how long a key rotated away as planned still signs (default: 86400)                                                                                        |
 | `keyChainMaxCacheSeconds`    | `number`                | No       | Since 1.2: the longest a key chain is trusted from a cache (default: 300)                                                                                             |
+| `lineFramer`                 | `BTPLineFramerFactory`  | No       | Since 1.2: makes each connection's line framer, given `maxArtifactSizeKb` in bytes (default: `BtpsLineFramer.utf8`). See [A custom line framer](./advancedUsages.md#a-custom-line-framer) |
 
 Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 

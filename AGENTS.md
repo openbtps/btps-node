@@ -33,6 +33,7 @@ a new area only when none fits, and say why in the pull request.
 | `core/authentication/` | Device and agent authentication. |
 | `core/delegation/` | Delegated signing. |
 | `core/storage/` | Abstract and JSON stores. |
+| `core/framing/` | Cutting a connection's bytes into lines, one artifact to a line (`BtpsLineFramer`, `lineFramerStream`). No I/O of its own. |
 | `core/server/schemas/` | Every zod schema for what travels on the wire: artifacts, documents, responses. A group of related schemas gets a sub-folder, as `artifacts/` is. |
 | `client/libs/schema.ts` | The only other place a zod schema lives: the client's own options and commands. |
 | `core/server/constants/` | Protocol constants: action names, versions, currency codes. |

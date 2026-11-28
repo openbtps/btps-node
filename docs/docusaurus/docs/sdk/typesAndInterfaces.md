@@ -34,6 +34,7 @@ interface BtpsServerOptions {
   connectionTimeoutMs?: number;
   middlewarePath?: string;
   maxArtifactSizeKb?: number;
+  lineFramer?: BTPLineFramerFactory; // since 1.2
   maxArtifactAgeSeconds?: number;
   maxInFlightPerConnection?: number;
   maxConsecutiveInvalidLines?: number; // since 1.2
@@ -56,6 +57,7 @@ interface BtpsServerOptions {
 - `connectionTimeoutMs`: Optional. Closes a connection after this long with no request being handled, in milliseconds (default: 30000, no minimum). A connection is never closed while one of its requests is handled, so a server under heavy load can set it low
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
+- `lineFramer`: Optional, since 1.2. Makes the line framer that cuts each connection's bytes into artifacts, one artifact to a line. It is called once for each connection with `{ maxLineBytes }`: the limit from `maxArtifactSizeKb`, in bytes. Without it, the server uses `BtpsLineFramer.utf8`. The framer is the server's size check: once it reports a line over the limit (`overflowed`), the server answers `BTP_ERROR_ARTIFACT_TOO_LARGE` and ends the connection gently. See [BTPLineFramerFactory](#btplineframerfactory) and [A custom line framer](../server/advancedUsages.md#a-custom-line-framer)
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
 - `maxInFlightPerConnection`: Optional. How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written (default: 32, minimum: 1)
 - `maxConsecutiveInvalidLines`: Optional, since 1.2. How many lines in a row one connection may send that the server cannot read; it answers the last and ends the connection (default: 10, minimum: 1)
@@ -88,6 +90,7 @@ interface BTPClientOptions {
   hostOperator?: string;
   requireSignedBy?: { identity: string; selector: string };
   keyResolver?: BtpsKeyResolver; // since 1.2
+  lineFramer?: BTPLineFramerFactory; // since 1.2
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -108,6 +111,7 @@ interface BTPClientOptions {
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
 - `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server: its domain's operator (for example `admin$saas.example` under `btps1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is taken: with one key pair, the operator is the pinned signer
 - `keyResolver`: Optional, since 1.2. Finds the keys the client checks and encrypts with: an answer's signer (`verify`), and in `resolveIdentity` the receiver's key (`encrypt`), asked in place of DNS, with the receiver's host still asked after it. `BtpsAgent` and `BtpsTransporter` take it too. See [BtpsKeyResolver](#btpskeyresolver)
+- `lineFramer`: Optional, since 1.2. Makes the line framer that cuts each connection's answers, one answer to a line. It is called with `{ maxLineBytes: Infinity }`: answers have no limit, as a server's answer may carry what an agent fetches. Without it, the client uses `BtpsLineFramer.utf8`, with no limit. `BtpsAgent` and `BtpsTransporter` take it too. See [BTPLineFramerFactory](#btplineframerfactory)
 - `version`: Optional, with `host`: the protocol version the host record would give (default: the SDK's own, '1.2.0'). It is reported, never checked
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
@@ -2787,6 +2791,88 @@ interface IMetricsTracker {
 ```
 
 The options and counters of `BtpsSimpleRateLimiter`, and the contract `BtpsSimpleMetricsTracker` implements.
+
+---
+
+## Line Framing Types (`@btps/sdk`)
+
+Since 1.2. What cuts a connection's bytes into lines, one artifact to a line. The server and the client depend on these types, not on a class, so any implementation can be given to them. The built-in one is [BtpsLineFramer](./classApiReference.md#btpslineframer), and [lineFramerStream](./apiReference.md#lineframerstream) puts one on a Node stream.
+
+### BTPLineFramer
+
+```ts
+interface BTPLineFramer<T> {
+  push(chunk: Uint8Array): readonly T[];
+  end(): readonly T[];
+  reset(): void;
+  readonly bufferedBytes: number;
+  readonly overflowed: boolean;
+}
+```
+
+| Member          | What it does                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `push`          | Takes the next bytes. Returns every line they complete, in order, without its delimiter. Once a line passes the limit, returns the lines before it and nothing more until `reset()` |
+| `end`           | The input has ended: returns the last line, when it had no delimiter after it                                                                                      |
+| `reset`         | Forgets what it holds and starts afresh, as for a new connection                                                                                                   |
+| `bufferedBytes` | Bytes held of the line not yet ended                                                                                                                               |
+| `overflowed`    | Whether a line has passed the limit since the last `reset()`                                                                                                       |
+
+### BTPLineFramerOptions
+
+How a `BtpsLineFramer` frames, and what it makes of each line.
+
+```ts
+interface BTPLineFramerOptions<T> {
+  decode: (line: Uint8Array) => T;
+  maxLineBytes?: number;
+  delimiter?: number;
+}
+```
+
+| Field          | Type                          | Required | What it says                                                                                     |
+| -------------- | ----------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `decode`       | `(line: Uint8Array) => T`     | Yes      | What a line's bytes become. Called once for each line, with its delimiter taken off              |
+| `maxLineBytes` | `number`                      | No       | The most bytes one line may hold, its delimiter not counted. A whole number above 0; no limit when not given |
+| `delimiter`    | `number`                      | No       | The byte that ends a line: `0x0a` (`\n`) when not given                                          |
+
+Options it cannot work with throw `BTP_ERROR_LINE_FRAMER_OPTIONS`: a `decode` that is not a function, a `maxLineBytes` that is not a whole number above 0 (or `Infinity`), and a `delimiter` that is not one byte.
+
+### BTPLineFramerLimits
+
+What a framer for one connection is made with.
+
+```ts
+interface BTPLineFramerLimits {
+  maxLineBytes: number; // Infinity for no limit
+}
+```
+
+A server gives `maxArtifactSizeKb` in bytes; a client gives `Infinity`.
+
+### BTPLineFramerFactory
+
+Makes the framer for one connection. Each connection has its own, as a framer holds its line. It is the `lineFramer` option of [BtpsServerOptions](#btpsserveroptions) and [BTPClientOptions](#btpclientoptions).
+
+```ts
+type BTPLineFramerFactory = (limits: BTPLineFramerLimits) => BTPLineFramer<string>;
+```
+
+A framer it makes honours `limits.maxLineBytes`: on a server, its `overflowed` is the only size check an artifact gets. See [A custom line framer](../server/advancedUsages.md#a-custom-line-framer).
+
+### BTPLineFramerStreamOptions
+
+What `lineFramerStream` does beside framing.
+
+```ts
+interface BTPLineFramerStreamOptions {
+  onOverflow?: () => void;
+}
+```
+
+| Field        | Type         | Required | What it says                                                                                                                                                                                  |
+| ------------ | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onOverflow` | `() => void` | No       | Called once, when a line passes the framer's limit. The stream goes on taking bytes and drops them, so a peer still sending is not stopped in the middle, and the caller can answer and end the connection gently |
 
 ---
 

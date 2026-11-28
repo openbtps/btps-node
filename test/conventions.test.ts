@@ -23,6 +23,7 @@ const CORE_AREAS = [
   'crypto',
   'delegation',
   'error',
+  'framing',
   'server',
   'storage',
   'trust',

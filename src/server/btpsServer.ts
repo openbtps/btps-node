@@ -19,7 +19,6 @@ import {
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
-import split2 from 'split2';
 
 import { randomUUID } from 'crypto';
 import {
@@ -46,7 +45,14 @@ import {
   BTP_ERROR_PERMISSION_REQUIRED,
   BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
   BTP_ERROR_DETAILS_NOT_HELD,
+  BTP_ERROR_ARTIFACT_TOO_LARGE,
 } from '@core/error/constant.js';
+import {
+  BtpsLineFramer,
+  lineFramerStream,
+  type BTPLineFramer,
+  type BTPLineFramerFactory,
+} from '@core/framing/index.js';
 import {
   assertStrictJson,
   getFingerprintFromPem,
@@ -119,7 +125,7 @@ import {
 import { cosignaturesProblem } from '@core/trust/cosignatures.js';
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { resolveKeyChainMaxCacheSeconds, resolveRetiredKeyGraceSeconds } from './libs/keyChains.js';
-import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
+import { resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import {
   artifactTimeWindowError,
   resolveMaxArtifactAgeSeconds,
@@ -191,6 +197,8 @@ export class BtpsServer {
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
+  /** Since 1.2: makes each connection's line framer (BtpsLineFramer.utf8 unless given). */
+  private readonly lineFramer: BTPLineFramerFactory;
   private readonly maxInFlightPerConnection: number;
   private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
@@ -228,6 +236,7 @@ export class BtpsServer {
     this.entityTypeOf = options.entityTypeOf;
     this.connectionTimeoutMs = resolveConnectionTimeoutMs(options.connectionTimeoutMs);
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
+    this.lineFramer = options.lineFramer ?? ((limits) => BtpsLineFramer.utf8(limits));
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
     );
@@ -362,7 +371,7 @@ export class BtpsServer {
    * Handles an incoming TLS socket connection.
    *
    * This method sets up data and error event listeners for the socket and its associated
-   * data stream (split2). It handles parsing, validating, verifying, and processing BTPS requests.
+   * line stream (lineFramerStream). It handles parsing, validating, verifying, and processing BTPS requests.
    *
    * ⚠️ Important:
    * - Ensures per-connection event handlers are cleaned up via `off()` in the `close` handler.
@@ -373,19 +382,32 @@ export class BtpsServer {
    */
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
-    // An artifact over the limit: stop reading lines, answer, and end the
-    // connection gently while the guard drops whatever else the peer sends,
-    // so the answer reaches a peer that is still sending.
-    const sizeGuard = artifactSizeGuard(this.maxArtifactSizeKb, (error) => {
-      sizeGuard.unpipe(stream);
-      stream.destroy();
-      const { reqCtx, resCtx } = createContexts();
-      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
-      errorReq.error = error;
-      this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
+    // Each line is one artifact, cut from the connection's bytes in time that grows with the line
+    // (BtpsLineFramer). One over the limit is never held: no more lines are read, it is answered,
+    // and the connection ends gently while the rest the peer sends is dropped, so the answer
+    // reaches a peer that is still sending. A framer the given factory cannot make is this
+    // connection's end alone, said to onError: never the server's.
+    let framer: BTPLineFramer<string>;
+    try {
+      framer = this.lineFramer({ maxLineBytes: Math.floor(this.maxArtifactSizeKb * 1024) });
+    } catch (err) {
+      this.onError?.(transformToBTPErrorException(err));
+      socket.destroy();
+      return;
+    }
+    const stream = lineFramerStream(framer, {
+      onOverflow: () => {
+        const error = new BTPErrorException({
+          ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+          message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${this.maxArtifactSizeKb} KB`,
+        });
+        const { reqCtx, resCtx } = createContexts();
+        const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+        errorReq.error = error;
+        this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
+      },
     });
-    socket.pipe(sizeGuard);
-    const stream = sizeGuard.pipe(split2());
+    socket.pipe(stream);
     const createIdentityRef = () => {
       let toIdentity: string | undefined = undefined;
       let fromIdentity: string | undefined = undefined;
@@ -616,13 +638,11 @@ export class BtpsServer {
     };
 
     socket.on('error', handleError);
-    sizeGuard.on('error', handleError);
     stream.on('error', handleError);
 
     // Cleanup to avoid memory leaks and max listener warnings
     socket.on('close', () => {
       socket.off('error', handleError);
-      sizeGuard.off('error', handleError);
       if (typeof stream.off === 'function') stream.off('error', handleError);
     });
   }

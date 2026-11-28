@@ -68,8 +68,10 @@ import {
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
   BTP_ERROR_DETAILS_RATE_LIMITED,
+  BTP_ERROR_LINE_FRAMER_OPTIONS,
   type BTPError,
 } from '../../core/error/index.js';
+import { BtpsLineFramer } from '../../core/framing/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
 
@@ -3454,8 +3456,8 @@ export default function () {
           const rawWireLine = (expiredSocket.write as Mock).mock.calls[0][0] as string;
 
           // The 1.0.0 client never calls getSocket()/tls.connect() here -
-          // onData is reached directly, exactly as it would be once split2
-          // has framed a line off the real socket.
+          // onData is reached directly, exactly as it would be once the line
+          // framer has framed a line off the real socket.
           const client = new BtpsClient({ to: 'sender$domain.com' });
 
           const resolve = vi.fn();
@@ -3824,6 +3826,40 @@ export default function () {
       expect(written.type).toBe('btps_error');
       expect(written.status.ok).toBe(false);
       expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 2048 KB`);
+    });
+
+    it('cuts each connection with the line framer it is given, made with its limit in bytes', async () => {
+      const made: number[] = [];
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb: 2048,
+        lineFramer: (limits) => {
+          made.push(limits.maxLineBytes);
+          return BtpsLineFramer.utf8(limits);
+        },
+      });
+      const { input, socket } = connect(server);
+      expect(made).toEqual([2048 * 1024]);
+      input.write(Buffer.alloc(2048 * 1024 + 1, 'a'));
+      await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
+    });
+
+    it('ends only the connection whose line framer cannot be made, and says so to onError', () => {
+      const onError = vi.fn();
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        onError,
+        lineFramer: () => new BtpsLineFramer<string>({ decode: () => '', maxLineBytes: 0 }),
+      });
+      const { socket } = connect(server);
+      expect(socket.destroy).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ code: BTP_ERROR_LINE_FRAMER_OPTIONS.code }),
+      );
     });
 
     it('starts with a warning and the 1024 KB minimum when set lower', async () => {

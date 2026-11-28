@@ -5,3 +5,4 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 export * from '@core/utils/index.js';
+export * from '@core/framing/index.js';

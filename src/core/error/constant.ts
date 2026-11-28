@@ -291,6 +291,12 @@ export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   status: 413,
 };
 
+/** Since 1.2: a line framer was given options it cannot work with. */
+export const BTP_ERROR_LINE_FRAMER_OPTIONS: BTPError = {
+  code: 'BTP_ERROR_LINE_FRAMER_OPTIONS',
+  message: 'Line framer options are not usable',
+};
+
 export const BTP_ERROR_VERSION_UNSUPPORTED: BTPError = {
   code: 'BTP_ERROR_VERSION_UNSUPPORTED',
   message: 'This server does not support the artifact protocol version',

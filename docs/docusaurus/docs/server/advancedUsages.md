@@ -498,6 +498,47 @@ const server = new BtpsServer({ ...options, keyResolver });
 
 `use` says what the key is for: `verify`, a signature key, at the selector the signature names; or `encrypt`, a receiver's key. Given `from`, the default lookup finds both the same way: in DNS, then, only when DNS has no record for the key, from the identity's host, in an answer its domain's operator signed. Without `from`, it looks in DNS only, and a server given that resolver refuses a signature by a hosted identity, whose key is not in DNS (`BTP_ERROR_RESOLVE_PUBKEY`). See [Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key). Keep the time to live short: a provider rotates a key by publishing a new selector, and a removed key should stop verifying soon after. A key's selector is never reused for a different key, so a cached key is never the wrong one for its selector.
 
+### A custom line framer
+
+Since 1.2, the server cuts each connection's bytes into lines with a line framer, one artifact to a line ([Reading a connection](./overview.md#reading-a-connection)). The built-in `BtpsLineFramer.utf8` is the default, and most servers never change it. To count, log or measure what a connection sends, give the server a `lineFramer`: a function it calls once for each connection, with `{ maxLineBytes }`, the limit from `maxArtifactSizeKb` in bytes.
+
+Wrap the built-in framer rather than writing your own. This one counts every byte the server reads:
+
+```ts check
+import { BtpsLineFramer, type BTPLineFramer, type BTPLineFramerFactory } from '@btps/sdk';
+import { BtpsServer, type BtpsServerOptions } from '@btps/sdk/server';
+
+export const counts = { bytesRead: 0 }; // send it to your metrics system
+
+const countingFramer: BTPLineFramerFactory = (limits) => {
+  const framer = BtpsLineFramer.utf8(limits); // keeps the server's size limit
+  const counting: BTPLineFramer<string> = {
+    push(chunk) {
+      counts.bytesRead += chunk.length;
+      return framer.push(chunk);
+    },
+    end: () => framer.end(),
+    reset: () => framer.reset(),
+    get bufferedBytes() {
+      return framer.bufferedBytes;
+    },
+    get overflowed() {
+      return framer.overflowed;
+    },
+  };
+  return counting;
+};
+
+export const countingServer = (options: BtpsServerOptions) =>
+  new BtpsServer({ ...options, lineFramer: countingFramer });
+```
+
+:::warning
+The framer is the server's size check. The server refuses an artifact over `maxArtifactSizeKb` only when its framer reports `overflowed`. A framer that ignores `maxLineBytes`, or never sets `overflowed`, lets a sender make the server hold a line of any size.
+:::
+
+`BtpsClient`, `BtpsAgent` and `BtpsTransporter` take a `lineFramer` too, for the answers they read. A client calls it with `{ maxLineBytes: Infinity }`, as an agent's fetched answers may be large. See [BTPLineFramerFactory](../sdk/typesAndInterfaces.md#btplineframerfactory) and [BtpsLineFramer](../sdk/classApiReference.md#btpslineframer).
+
 ## Security Best Practices
 
 - Use strong TLS configuration and rotate certificates regularly.

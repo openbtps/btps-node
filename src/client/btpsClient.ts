@@ -7,7 +7,7 @@
 
 import tls, { type TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
-import split2 from 'split2';
+import { BtpsLineFramer, lineFramerStream, type BTPLineFramer } from '@core/framing/index.js';
 import {
   getBtpAddressParts,
   getDnsIdentityParts,
@@ -28,6 +28,7 @@ import {
   UpdateBTPClientOptions,
 } from './types/index.js';
 import {
+  BTP_ERROR_ARTIFACT_TOO_LARGE,
   BTP_ERROR_CONNECTION_CLOSED,
   BTP_ERROR_CONNECTION_ENDED,
   BTP_ERROR_IDENTITY,
@@ -262,7 +263,21 @@ export class BtpsClient {
    * connection closing late leaves a newer one alone.
    */
   protected attachListeners(socket: TLSSocket) {
-    socket.pipe(split2()).on('data', (line: string) => void this.onData(line, socket));
+    // Each answer is one line, cut in time that grows with the line (BtpsLineFramer). One a given
+    // framer finds too large, or a framer that cannot be made, ends the connection with why, so
+    // what waits on it fails at once rather than when its wait runs out.
+    const limits = { maxLineBytes: Number.POSITIVE_INFINITY };
+    let framer: BTPLineFramer<string>;
+    try {
+      framer = this.options.lineFramer?.(limits) ?? BtpsLineFramer.utf8(limits);
+    } catch (error) {
+      framer = BtpsLineFramer.utf8(limits);
+      queueMicrotask(() => socket.destroy(transformToBTPErrorException(error)));
+    }
+    const lines = lineFramerStream(framer, {
+      onOverflow: () => socket.destroy(new BTPErrorException(BTP_ERROR_ARTIFACT_TOO_LARGE)),
+    });
+    socket.pipe(lines).on('data', (line: string) => void this.onData(line, socket));
 
     // Nothing more can arrive on it: once the lines already received are read, what still waits on it fails.
     const over = (error: BTPErrorException) => {
