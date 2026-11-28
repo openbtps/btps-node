@@ -36,6 +36,7 @@ const {
   documentId,
   referenceType,
   note,
+  documentAttachments,
 } = BTPS_FIELD_LIMITS;
 
 /** The sending platform's own data: carried and signed, never read by the protocol. */
@@ -365,10 +366,17 @@ const BtpDiscountedLineItemsSchema = BtpLineItemsSchema.extend({
     { message: 'each role names one of columns, and appears at most once', path: ['roles'] },
   );
 
+/**
+ * Since 1.2, under 1.2.0: a document's attachments, up to the ceiling only. How many a provider
+ * takes is its own (attachmentLimits.ts), checked beside this schema wherever a document is.
+ */
+const attachments1_2 = boundedArray(BtpAttachmentSchema, documentAttachments.ceiling).optional();
+
 /** What 1.2 adds to every document: who it is for, and its BoundView. */
 const viewFields1_2 = {
   recipient: BtpRecipientSchema.optional(),
   boundView: BtpBoundViewSchema.optional(),
+  attachments: attachments1_2,
 };
 
 const documentFields1_2 = {
@@ -511,6 +519,7 @@ export const BtpLetterDocV1_1Schema = z
 /** A payslip, which since 1.2 may carry its BoundView. Its recipient is its `employee`. */
 export const BtpPayslipDocSchema = BtpPayslipDocV1_1Schema.extend({
   boundView: BtpBoundViewSchema.optional(),
+  attachments: attachments1_2,
 }).strict();
 
 /** A letter, which since 1.2 may name its recipient, carry its signatory and its BoundView. */
@@ -535,7 +544,7 @@ export const BtpDocumentV1_1Schema = z.discriminatedUnion('type', [
 const BtpAcceptanceSchema = z
   .object({
     by: z.string().datetime().optional(),
-    terms: boundedArray(sha256Hex, letter.attachments),
+    terms: boundedArray(sha256Hex, documentAttachments.ceiling),
     signers: boundedArray(z.object({ address: identitySchema }).strict(), agreement.signers),
     signingOrder: z.enum(['any', 'sequential']),
   })
@@ -806,7 +815,7 @@ export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.Zod
   z
     .object({
       agreement: BtpAgreementRefSchema,
-      terms: boundedArray(sha256Hex, letter.attachments),
+      terms: boundedArray(sha256Hex, documentAttachments.ceiling),
       signer: identitySchema,
       // Since 1.2: the artifact that first delivers it, as its cosignature names it; a device's is its delegated artifact.
       artifactId: z.string().uuid(),

@@ -229,9 +229,9 @@ const cases: Case[] = [
     build: (n) => ({ ...letter, body: { format: 'markdown', content: text(n) } }),
   },
   {
-    name: 'letter attachments (count)',
+    name: 'letter attachments (count, to the ceiling)',
     schema: BtpLetterDocSchema,
-    limit: letterLimits.attachments,
+    limit: BTPS_FIELD_LIMITS.documentAttachments.ceiling,
     build: (n) => ({ ...letter, attachments: Array.from({ length: n }, () => attachment) }),
   },
   {

@@ -285,7 +285,8 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
       }
     } else {
       // If not encrypted, document must match the schema for the type
-      const schema = processBtpDocSchema(data.type, data.version);
+      // Attachments to their schema's ceiling only: a receiving server holds them to its own limits.
+      const schema = processBtpDocSchema(data.type, data.version, 'ceiling');
       if (!schema) return false;
       if (!schema.safeParse(data.document).success) {
         ctx.addIssue({

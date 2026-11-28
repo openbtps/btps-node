@@ -9,7 +9,7 @@ import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from './t
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_SIG_VERIFICATION } from '@core/error/constant.js';
 import { boundViewResultOf } from '@core/server/schemas/boundViewChecks.js';
-import { checkDecryptedDocument } from './documentChecks.js';
+import { checkDecryptedDocument, type BTPDocumentCheckOptions } from './documentChecks.js';
 import isEmpty from 'lodash/isEmpty.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import { openCosignature } from '@core/trust/cosignatures.js';
@@ -27,6 +27,8 @@ const genDecryptError = (error: BTPErrorException) => ({
  * signature is checked over the artifact as sent, and only the decryption uses it.
  * Since 1.2, `cosignatureKeys` are the cosignatures' content keys wrapped
  * the same way (`agentKey.cosignatureKeys`), by position.
+ * Since 1.2, `options.maxAttachments`: how many attachments this provider takes in a document,
+ * one number or one for each type, 20 to 1000; the standard 20 of each when not given.
  */
 export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
@@ -34,6 +36,7 @@ export const decryptVerify = async <T = unknown>(
   receiverKey?: BTPDecryptionKey,
   contentKey?: string,
   cosignatureKeys?: (string | null)[],
+  options?: Pick<BTPDocumentCheckOptions, 'maxAttachments'>,
 ): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
@@ -72,7 +75,9 @@ export const decryptVerify = async <T = unknown>(
   // An encrypted document is checked once it can be read, as an unencrypted one is on arrival
   // (documentChecks.ts: the same checks a platform runs on one it decrypted a piece at a time).
   if (needsDecryption) {
-    const problem = await checkDecryptedDocument(decryptedData, restEncryptedPayload);
+    const problem = await checkDecryptedDocument(decryptedData, restEncryptedPayload, {
+      maxAttachments: options?.maxAttachments,
+    });
     if (problem) return genDecryptError(problem);
   }
 

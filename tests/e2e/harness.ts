@@ -30,6 +30,7 @@ import {
   getFingerprintFromPem,
   signEncrypt,
   decryptVerify,
+  type BTPCryptoOptions,
 } from '../../src/core/crypto/index.js';
 import {
   BTP_PROTOCOL_VERSION,
@@ -306,7 +307,11 @@ export async function artifactFrom(
   to: string,
   type: BTPArtifactType,
   document: unknown,
-  options: { encrypt?: boolean; extra?: Record<string, unknown> } = {},
+  options: {
+    encrypt?: boolean;
+    extra?: Record<string, unknown>;
+    maxAttachments?: BTPCryptoOptions['maxAttachments'];
+  } = {},
 ) {
   const { accountName, domainName } = parseIdentity(from.identity)!;
   const { payload, error } = await signEncrypt(
@@ -327,6 +332,7 @@ export async function artifactFrom(
     },
     {
       signature: { algorithmHash: 'sha256' },
+      maxAttachments: options.maxAttachments,
       ...(options.encrypt === false
         ? {}
         : { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } }),
@@ -348,7 +354,11 @@ export async function deliver(artifact: BTPTransporterArtifact): Promise<BTPClie
 }
 
 /** Opens what arrived for `receiver`, as its platform does when the user views it. */
-export async function open<T>(receiver: User, artifact: BTPTransporterArtifact) {
+export async function open<T>(
+  receiver: User,
+  artifact: BTPTransporterArtifact,
+  options?: { maxAttachments?: BTPCryptoOptions['maxAttachments'] },
+) {
   // A device's artifact is signed by the device key its delegation carries, checked as a server checks it.
   const sender = artifact.delegation
     ? (await verifyTransporterSignature(artifact)).signerKey
@@ -360,6 +370,9 @@ export async function open<T>(receiver: User, artifact: BTPTransporterArtifact) 
     sender,
     artifact as unknown as Parameters<typeof decryptVerify<T>>[1],
     receiver.keys.privateKey,
+    undefined,
+    undefined,
+    options,
   );
 }
 

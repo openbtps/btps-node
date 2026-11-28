@@ -185,7 +185,7 @@ describe('every limit is accepted at its maximum and refused one over', () => {
     ],
     [
       'invoice attachments',
-      L.attachments,
+      L.documentAttachments.ceiling,
       BtpInvoiceDocSchema,
       (n) => invoice({ attachments: fill(n, () => attachment) }),
     ],
@@ -253,7 +253,7 @@ describe('every limit is accepted at its maximum and refused one over', () => {
     ],
     [
       'payslip attachments',
-      L.attachments,
+      L.documentAttachments.ceiling,
       BtpPayslipDocSchema,
       (n) => payslip({ attachments: fill(n, () => attachment) }),
     ],
@@ -265,7 +265,7 @@ describe('every limit is accepted at its maximum and refused one over', () => {
     ],
     [
       'letter attachments',
-      L.letter.attachments,
+      L.documentAttachments.ceiling,
       BtpLetterDocSchema,
       (n) => letter({ attachments: fill(n, () => attachment) }),
     ],

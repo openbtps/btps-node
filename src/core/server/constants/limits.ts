@@ -10,7 +10,8 @@
  * record in keys. The protocol fixes these,
  * so every provider accepts the same documents: a provider may be stricter
  * in its own middleware, but cannot raise them. They are raised only by a
- * protocol version.
+ * protocol version. Since 1.2, one exception: how many attachments a 1.2.0
+ * document carries (`documentAttachments`), which a provider may raise.
  */
 export const BTPS_FIELD_LIMITS = {
   trustRequest: {
@@ -66,8 +67,13 @@ export const BTPS_FIELD_LIMITS = {
     records: 100,
     publicKey: 2048,
   },
-  // An invoice's, a receipt's and a payslip's; a letter has its own.
+  // An invoice's, a receipt's and a payslip's under 1.1.0; a letter has its own. 1.2.0: `documentAttachments`.
   attachments: 10,
+  // Since 1.2, under 1.2.0: the attachments of every type of document, and so an agreement's terms.
+  // Every receiver takes `standard`, so a sender within it is never refused; a provider may take
+  // more, up to `ceiling` (`maxAttachments`), and may send fewer. Unlike the other limits, a
+  // provider raises this one itself.
+  documentAttachments: { standard: 20, ceiling: 1000 },
   references: 20,
   // A row has no more cells than there may be columns.
   lineItems: {

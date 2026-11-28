@@ -20,10 +20,15 @@
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_DOCUMENT_TYPE_MISMATCH, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
 import { decryptedDocumentProblem, processBtpDocSchema } from '@core/server/schemas/helpers.js';
+import {
+  attachmentLimitProblem,
+  resolveAttachmentLimits,
+  type BTPAttachmentLimits,
+} from '@core/server/schemas/attachmentLimits.js';
 import type { BTPArtifactType } from '@core/server/types.js';
 import { verifierRefusal } from '@core/trust/verification.js';
 
-/** How a document's BoundView is checked. */
+/** How a document's BoundView is checked, and its attachments counted. */
 export type BTPDocumentCheckOptions = {
   /**
    * `whereDrawn`: not here. Only where the document's BoundView is drawn with
@@ -31,6 +36,11 @@ export type BTPDocumentCheckOptions = {
    * draws none that fails. Otherwise, leave it out: it is checked here.
    */
   boundView?: 'whereDrawn';
+  /**
+   * Since 1.2: how many attachments this provider sends (checkDocumentToSend: 0 or more) or takes
+   * (checkDecryptedDocument: 20 or more); the standard 20 of each when not given.
+   */
+  maxAttachments?: BTPAttachmentLimits;
 };
 
 /** What the envelope of an artifact says that its document is held to. */
@@ -74,13 +84,17 @@ export const checkDocumentToSend = (
   const mismatch = documentTypeMismatch(document, envelope);
   if (mismatch) return mismatch;
   const version = typeof envelope.version === 'string' ? envelope.version : undefined;
-  const docSchema = processBtpDocSchema(envelope.type as BTPArtifactType, version);
+  const docSchema = processBtpDocSchema(envelope.type as BTPArtifactType, version, 'ceiling');
   if (docSchema && !docSchema.safeParse(asChecked(document, options)).success) {
     return new BTPErrorException(BTP_ERROR_VALIDATION, {
       cause: 'Document type does not match the artifact type',
     });
   }
-  return undefined;
+  const over =
+    envelope.type === 'BTPS_DOC'
+      ? attachmentLimitProblem(document, resolveAttachmentLimits(options?.maxAttachments, 'send'))
+      : undefined;
+  return over ? new BTPErrorException(BTP_ERROR_VALIDATION, { cause: over }) : undefined;
 };
 
 /**
@@ -94,7 +108,11 @@ export const checkDecryptedDocument = async (
   envelope: BTPDocumentEnvelope,
   options?: BTPDocumentCheckOptions,
 ): Promise<BTPErrorException | undefined> => {
-  const problem = decryptedDocumentProblem(asChecked(document, options), envelope);
+  const problem = decryptedDocumentProblem(
+    asChecked(document, options),
+    envelope,
+    resolveAttachmentLimits(options?.maxAttachments, 'receive'),
+  );
   if (problem) return new BTPErrorException(BTP_ERROR_VALIDATION, { cause: problem });
   const mismatch = documentTypeMismatch(document, envelope);
   if (mismatch) return mismatch;

@@ -136,6 +136,11 @@ import {
   type BTPArrivalLeave,
   type BtpsArrivalGate,
 } from './libs/arrivalGate.js';
+import {
+  attachmentLimitProblem,
+  resolveAttachmentLimits,
+  type BTPResolvedAttachmentLimits,
+} from '@core/server/schemas/attachmentLimits.js';
 import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
@@ -201,6 +206,8 @@ export class BtpsServer {
   private readonly maxInFlightPerConnection: number;
   /** Since 1.2: places for artifacts across every connection; none without `maxArtifactsInFlight`. */
   private readonly arrivals?: BtpsArrivalGate;
+  /** Since 1.2: how many attachments a document this server reads may carry, by type. */
+  private readonly attachmentLimits: BTPResolvedAttachmentLimits;
   private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
@@ -241,6 +248,7 @@ export class BtpsServer {
       options.maxInFlightPerConnection,
     );
     this.arrivals = resolveArrivalGate(options.maxArtifactsInFlight, options.maxArtifactsWaiting);
+    this.attachmentLimits = resolveAttachmentLimits(options.maxAttachments, 'receive');
     this.maxConsecutiveInvalidLines = resolveMaxConsecutiveInvalidLines(
       options.maxConsecutiveInvalidLines,
     );
@@ -580,6 +588,20 @@ export class BtpsServer {
               ...BTP_ERROR_VERSION_UNSUPPORTED,
               message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports ${MIN_SUPPORTED_VERSION} to ${MAX_SUPPORTED_VERSION}`,
             },
+            parseRes.reqId,
+          );
+        }
+
+        // Since 1.2: a document this server can read carries no more attachments than it takes.
+        // One encrypted is counted where it is opened (decryptVerify's maxAttachments).
+        const over = attachmentLimitProblem(
+          (data.artifact as { document?: unknown }).document,
+          this.attachmentLimits,
+        );
+        if (over) {
+          return this.sendBtpsError(
+            socket,
+            { ...BTP_ERROR_VALIDATION, message: `${BTP_ERROR_VALIDATION.message}: ${over}` },
             parseRes.reqId,
           );
         }

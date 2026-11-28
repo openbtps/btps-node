@@ -23,6 +23,7 @@ import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import type { BTPAttachmentLimits } from '@core/server/schemas/attachmentLimits.js';
 import type { z } from 'zod';
 import type {
   BtpAgreementDocSchema,
@@ -96,6 +97,15 @@ export interface BtpsServerOptions {
    * (none waits).
    */
   maxArtifactsWaiting?: number;
+  /**
+   * Since 1.2: how many attachments a document this server reads may carry: one number for every
+   * type, or one per type (`{ letter: 100, agreement: 100 }`), the rest at 20. Default 20 of each,
+   * minimum 20 (every receiver takes that many, so a sender within it is never refused), at most
+   * 1000. Past it, the artifact is answered `BTP_ERROR_VALIDATION`. Only an unencrypted document
+   * can be counted here: an encrypted one is counted where it is opened, with `decryptVerify`'s
+   * `maxAttachments`. To send fewer, a provider holds its own documents to it (`signEncrypt`).
+   */
+  maxAttachments?: BTPAttachmentLimits;
   /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
   maxConsecutiveInvalidLines?: number;
   /** Since 1.2: how long, in seconds, a key its identity rotated away from as planned still signs for this server. Default 86400 (1 day). A key rotated with immediate expiry gets none. */

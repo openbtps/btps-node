@@ -38,6 +38,11 @@ import {
   BtpTrustResDocSchema,
   BtpTrustResDocV1_1Schema,
 } from './btpsDocsSchema.js';
+import {
+  STANDARD_ATTACHMENT_LIMITS,
+  attachmentLimitProblem,
+  type BTPResolvedAttachmentLimits,
+} from './attachmentLimits.js';
 import { BTPEncryption } from '@core/crypto/types.js';
 import type { BTPEventFacts } from '@core/trust/types.js';
 import {
@@ -50,14 +55,29 @@ import {
 export { trustRequestProblem, trustResponseProblem, BtpDetailValueSchemas } from './trustValues.js';
 export { trustGrantProblem, documentTypeProblem, detailsProblem } from '@core/trust/permissions.js';
 
+/** A document held to `limits` for its attachments, as well as to `schema`. */
+const documentWithin = <S extends z.ZodTypeAny>(schema: S, limits: BTPResolvedAttachmentLimits) =>
+  schema.superRefine((document: unknown, ctx: z.RefinementCtx) => {
+    const problem = attachmentLimitProblem(document, limits);
+    if (problem)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['attachments'] });
+  });
+
+const STANDARD_DOCUMENT_SCHEMA = documentWithin(BtpDocumentSchema, STANDARD_ATTACHMENT_LIMITS);
+
 /**
  * The schema a document of this artifact type is read with, under the
  * artifact's version: 1.2 rules apply to 1.2.0 artifacts only, so a document
  * valid in 1.1 stays valid under 1.1.0. Without a version, as 1.1 reads it.
+ * Since 1.2, a document's attachments are held to `attachments`: a provider's
+ * own limits, the standard 20 of each when not given (which no 1.1.0 document,
+ * at most 10, passes), or only its schema's (`'ceiling'`) where the provider's
+ * own are checked after it, as BtpsServer does.
  */
 export const processBtpDocSchema = (
   bptArtifactType: BTPArtifactType,
   version: string = MIN_SUPPORTED_VERSION,
+  attachments: BTPResolvedAttachmentLimits | 'ceiling' = STANDARD_ATTACHMENT_LIMITS,
 ) => {
   const before1_2 = isVersionBelow(version, '1.2.0');
   switch (bptArtifactType) {
@@ -66,7 +86,11 @@ export const processBtpDocSchema = (
     case 'TRUST_REQ':
       return before1_2 ? BtpTrustReqDocV1_1Schema : BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
+      if (attachments === 'ceiling') return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
+      if (attachments === STANDARD_ATTACHMENT_LIMITS) {
+        return before1_2 ? BtpDocumentV1_1Schema : STANDARD_DOCUMENT_SCHEMA;
+      }
+      return documentWithin(before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema, attachments);
     case 'BTPS_EVENT':
       return before1_2 ? BtpLifecycleEventV1_1Schema : BtpEventSchema;
     // Since 1.2, under 1.2.0 only: the envelope refuses a details artifact under 1.1.0.
@@ -187,12 +211,18 @@ export const lifecycleEventChainProblem = (
 export const decryptedDocumentProblem = (
   document: unknown,
   envelope: Record<string, unknown>,
+  attachments: BTPResolvedAttachmentLimits = STANDARD_ATTACHMENT_LIMITS,
 ): string | undefined => {
   const version = typeof envelope.version === 'string' ? envelope.version : undefined;
-  const schema = processBtpDocSchema(envelope.type as BTPArtifactType, version);
+  const schema = processBtpDocSchema(envelope.type as BTPArtifactType, version, 'ceiling');
   if (!schema) return undefined;
   const parsed = schema.safeParse(document);
   if (!parsed.success) return 'Document type does not match the artifact type';
+  // Since 1.2: as many attachments as this provider takes, said as such.
+  if (envelope.type === 'BTPS_DOC') {
+    const over = attachmentLimitProblem(document, attachments);
+    if (over) return over;
+  }
   // Since 1.2: a trust request's or answer's values match the names on its envelope.
   const names = envelope as { given?: readonly string[]; granted?: readonly string[] };
   if (envelope.type === 'TRUST_REQ') return trustRequestProblem({ given: names.given, document });
@@ -281,7 +311,8 @@ export const validateAgentDocument = (
         ? AGENT_TRANSPORTER_ACTIONS[action as keyof typeof AGENT_TRANSPORTER_ACTIONS]
         : undefined;
     const expectedSchema = sendsAs
-      ? processBtpDocSchema(sendsAs, artifactVersion({ type: sendsAs, document }))
+      ? // Attachments to its schema's ceiling: the server holds them to its own limits.
+        processBtpDocSchema(sendsAs, artifactVersion({ type: sendsAs, document }), 'ceiling')
       : processBtpDocSchemaForAgent(action);
     if (expectedSchema) {
       const documentValidation = expectedSchema.safeParse(document);

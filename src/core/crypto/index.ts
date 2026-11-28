@@ -38,6 +38,10 @@ export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keyResolver.js';
 export * from './contentKey.js';
+export type {
+  BTPAttachmentLimits,
+  BTPAttachingDocumentType,
+} from '@core/server/schemas/attachmentLimits.js';
 export {
   checkDecryptedDocument,
   checkDocumentToSend,
