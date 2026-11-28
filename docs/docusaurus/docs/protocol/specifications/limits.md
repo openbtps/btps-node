@@ -95,8 +95,8 @@ Every document type, invoice, receipt, payslip, letter and agreement, limits its
 identifiers. How many entries its lists may have is under
 [Lists and records](#lists-and-records). Its other content is bounded by the
 [artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
-only, an invoice's or receipt's description, a document's BoundView and a
-letter's signatory. Under `1.1.0` a description has no limit of its own, as
+only, an invoice's or receipt's description and line item text, a document's
+BoundView and a letter's signatory. Under `1.1.0` a description has no limit of its own, as
 in 1.1.
 
 | Field                                        | Limit |
@@ -106,6 +106,19 @@ in 1.1.
 | `references[].type`                          |    64 |
 | `description` (or its `content`), 1.2.0 only | 5,000 |
 | `recipient.name`, 1.2.0 only                 |   200 |
+
+### Line items
+
+Since 1.2, in a `1.2.0` invoice or receipt only. Under `1.1.0` a column name
+and a text cell have no limit of their own, as in 1.1.
+
+| Field                           | Limit |
+| ------------------------------- | ----: |
+| a `lineItems.columns` name      | 1,000 |
+| a text cell in `lineItems.rows` | 1,000 |
+
+A number cell is unchanged: a safe whole number, with no length. How many rows,
+columns and cells there may be is under [Lists and records](#lists-and-records).
 
 ### Receipt
 
@@ -361,6 +374,7 @@ BTPS_FIELD_LIMITS.trustRequest.reason; // 2000
 BTPS_FIELD_LIMITS.documentId; // 100
 BTPS_FIELD_LIMITS.letter.content; // 100000
 BTPS_FIELD_LIMITS.lineItems.rows; // 10000
+BTPS_FIELD_LIMITS.lineItems.cell; // 1000, since 1.2
 BTPS_FIELD_LIMITS.agreement.statementPaddingBucket; // 4096, since 1.2
 BTPS_FIELD_LIMITS.agreement.cosignatureCiphertextChars; // 262144, since 1.2
 BTPS_FIELD_LIMITS.documentAttachments; // { standard: 20, ceiling: 1000 }, since 1.2
@@ -369,20 +383,23 @@ BTPS_FIELD_LIMITS.documentAttachments; // { standard: 20, ceiling: 1000 }, since
 ## Receiver settings
 
 Each server sets these for what it receives. A value below the minimum is
-raised to the minimum, with a warning; the server still starts.
+raised to the minimum, with a warning; the server still starts. Since 1.2,
+`maxArtifactSizeKb` is 64 MB by default and at least 64 MB (in 1.1, 5 MB by
+default and at least 1 MB), and `maxArtifactsInFlight` is 2 by default (in
+1.1, no limit).
 
-| Setting                      | Default         | Minimum  | What it bounds                                                                                   |
-| ---------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `maxArtifactSizeKb`          | 5,120 KB (5 MB) | 1,024 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
-| `maxArtifactAgeSeconds`      | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
-| `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
-| `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
-| `maxArtifactsInFlight`       | none (no limit) | 1        | since 1.2: how many artifacts the whole server may read and handle at once                       |
-| `maxArtifactsWaiting`        | 100             | 0        | since 1.2: with `maxArtifactsInFlight`, how many artifacts may wait for a place                  |
-| `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
-| `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
-| `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
-| `maxAttachments`             | 20 of each type | 20       | since 1.2: attachments in a `1.2.0` document, by type, at most 1,000 (see Attachments)           |
+| Setting                      | Default           | Minimum   | What it bounds                                                                                   |
+| ---------------------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `maxArtifactSizeKb`          | 65,536 KB (64 MB) | 65,536 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
+| `maxArtifactAgeSeconds`      | 300 (5 minutes)   | 60        | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
+| `connectionTimeoutMs`        | 30,000 (30 s)     | none      | how long a connection with nothing in flight stays open                                          |
+| `maxInFlightPerConnection`   | 32                | 1         | how many requests one connection may have handled at once                                        |
+| `maxArtifactsInFlight`       | 2                 | 1         | since 1.2: how many artifacts the whole server may read and handle at once                       |
+| `maxArtifactsWaiting`        | 100               | 0         | since 1.2: how many artifacts may wait for a place                                               |
+| `maxConsecutiveInvalidLines` | 10                | 1         | since 1.2: how many lines in a row one connection may send that the server cannot read           |
+| `retiredKeyGraceSeconds`     | 86,400 (1 day)    | 0         | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
+| `keyChainMaxCacheSeconds`    | 300 (5 minutes)   | 0         | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
+| `maxAttachments`             | 20 of each type   | 20        | since 1.2: attachments in a `1.2.0` document, by type, at most 1,000 (see Attachments)           |
 
 ### Requests in flight
 
@@ -403,11 +420,16 @@ answer is signed for it.
 
 ### Artifacts across the server
 
-Since 1.2, a server can also limit how many artifacts it reads and handles at
-once over every connection, with `maxArtifactsInFlight`. An artifact takes a
-place before its first byte is read, and gives it up once its answer is
-written. Without `maxArtifactsInFlight` there is no server-wide limit, as
-before.
+Since 1.2, a server also limits how many artifacts it reads and handles at
+once over every connection, with `maxArtifactsInFlight`: 2 by default. An
+artifact takes a place before its first byte is read, and gives it up once
+its answer is written. Two artifacts of the 64 MB every server takes need
+about 380 MB, so a server that sets nothing fits a 512 MB container.
+
+A place is held until its artifact is answered (its verification, its key
+lookups, the handler), whatever its size. A busy server raises
+`maxArtifactsInFlight` to handle more small artifacts at once, or runs more
+instances.
 
 An artifact that finds no place waits, in order of arrival, up to
 `maxArtifactsWaiting` (100 by default). While it waits, the server reads
@@ -429,8 +451,7 @@ waits: the first past the limit is refused at once.
 
 `maxArtifactsInFlight` is a whole number above 0: any other value is warned
 about and 1 is used. A `maxArtifactsWaiting` that is not a whole number is
-warned about and 100 is used, one below 0 is warned about and 0 is used, and
-one set without `maxArtifactsInFlight` is warned about and ignored.
+warned about and 100 is used, and one below 0 is warned about and 0 is used.
 
 The two limits complement each other. `maxInFlightPerConnection` bounds one
 connection, and counts an artifact only once it has been read whole.
@@ -442,22 +463,30 @@ again later. A provider's outbox, which retries, does this.
 
 ### Artifact size
 
-`maxArtifactSizeKb` is the receiver's choice, so a sender learns it only when
-an artifact is refused. Every server accepts at least 1 MB. A document meant
-for any receiver should stay under that; one with large attachments may need
-to be split.
+Since 1.2, every server takes artifacts up to 64 MB (65,536 KB), so a sender
+within it is never refused for its size. That is about 30 MB of files, plus
+the document's own fields: a file grows about 1.78 times, base64 inside the
+document, then encrypted and base64 again. A server may take more, with no
+maximum. A value below 64 MB is warned about and 64 MB is used.
+
+Above 64 MB, `maxArtifactSizeKb` is the receiver's choice, so a sender learns
+it only when an artifact is refused. A document with more files may need to
+be split. The guarantee holds between 1.2 servers: a 1.1 server keeps its own
+default of 5 MB, and takes at least 1 MB.
 
 The exported defaults are `DEFAULT_MAX_ARTIFACT_SIZE_KB`,
 `MIN_MAX_ARTIFACT_SIZE_KB`, `DEFAULT_MAX_ARTIFACT_AGE_SECONDS`,
 `MIN_MAX_ARTIFACT_AGE_SECONDS`, `DEFAULT_CONNECTION_TIMEOUT_MS`,
 `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION`, `MIN_MAX_IN_FLIGHT_PER_CONNECTION` and,
-since 1.2, `DEFAULT_MAX_ARTIFACTS_WAITING`, from `@btps/sdk/server/core`.
+since 1.2, `DEFAULT_MAX_ARTIFACTS_IN_FLIGHT` and
+`DEFAULT_MAX_ARTIFACTS_WAITING`, from `@btps/sdk/server/core`.
 
 #### Large documents
 
 An agreement carrying several PDFs can be far larger than an invoice.
-`maxArtifactSizeKb` is the receiver's choice, with a floor of 1 MB and no
-ceiling, so a platform that receives large agreements raises it deliberately.
+`maxArtifactSizeKb` is the receiver's choice, with a floor of 64 MB since 1.2
+and no ceiling, so a platform that receives larger agreements raises it
+deliberately.
 
 Size it from the largest files you take. Base64 is applied twice, and each
 time adds about a third:
@@ -493,17 +522,20 @@ the memory you have for artifacts ÷ (3 × the largest artifact you accept). For
 more at once, run more server instances behind a load balancer, each with its
 own places. Chunked encryption, in a later release, is what removes this cost.
 
-**Why the default stays 5 MB.** A server nobody configured should not be made
-to hold a very large artifact for each connection.
+**Why the default is 64 MB.** Since 1.2, it is what every server takes, so a
+sender within it is never refused for its size. A 64 MB artifact takes about
+190 MB of the server's memory while it is read, and with `maxArtifactsInFlight`
+at its default of 2, a server nobody configured needs about 380 MB for
+artifacts.
 
 **After receipt,** a platform does not have to hold the document whole again.
 With the stream functions, it views, stores or forwards it a piece at a time
 ([Large payloads, a piece at a time](../security/decryption.md#large-payloads-a-piece-at-a-time)).
 
 **For senders.** A sender learns a receiver's limit only when an artifact is
-refused, with `BTP_ERROR_ARTIFACT_TOO_LARGE`. A document meant for any receiver
-should still stay under 1 MB, or under the default 5 MB for receivers known to
-use it.
+refused, with `BTP_ERROR_ARTIFACT_TOO_LARGE`. A document meant for any 1.2
+receiver should stay within 64 MB. To a 1.1 receiver, stay within 1 MB, or
+within its default 5 MB where it is known to use it.
 
 ## Client and transporter settings
 
@@ -544,8 +576,8 @@ The exported values are `DEFAULT_CONNECT_TIMEOUT_MS`, `MIN_CONNECT_TIMEOUT_MS`,
 
 ## Being stricter
 
-A provider may refuse more than the protocol does: shorter fields, a smaller
-artifact, fewer requests. It does this in its own
+A provider may refuse more than the protocol does: shorter fields, fewer
+requests. It does this in its own
 [middleware](../../server/middlewares.md), answering with `res.sendError`. It cannot accept more than the protocol allows, since a
 document that only one provider accepts is not one every sender can rely on.
 The one exception, since 1.2, is how many attachments a `1.2.0` document
@@ -556,3 +588,6 @@ A provider may be stricter in this way about every field limit except the
 number of attachments. Every receiver takes at least 20 of each type, and
 must never refuse a `1.2.0` document for carrying 20 or fewer. A provider may
 still hold what its own users send to fewer.
+
+The same holds for size. Since 1.2, a server must not refuse an artifact of
+64 MB or less for its size ([Artifact size](#artifact-size)).

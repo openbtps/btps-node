@@ -1489,18 +1489,19 @@ export default () => createDefaultMiddleware();
 
 Each is the value a `BtpsServerOptions` setting takes when it is not set, or the lowest it may be set to.
 
-| Constant                               | Value   | Setting                                                   |
-| -------------------------------------- | ------- | --------------------------------------------------------- |
-| `DEFAULT_MAX_ARTIFACT_SIZE_KB`         | `5120`  | `maxArtifactSizeKb` default: 5 MB                         |
-| `MIN_MAX_ARTIFACT_SIZE_KB`             | `1024`  | `maxArtifactSizeKb` minimum: 1 MB                         |
-| `DEFAULT_MAX_ARTIFACT_AGE_SECONDS`     | `300`   | `maxArtifactAgeSeconds` default: 5 minutes                |
-| `MIN_MAX_ARTIFACT_AGE_SECONDS`         | `60`    | `maxArtifactAgeSeconds` minimum: 1 minute                 |
-| `DEFAULT_CONNECTION_TIMEOUT_MS`        | `30000` | `connectionTimeoutMs` default: 30 seconds                 |
-| `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` | `32`    | `maxInFlightPerConnection` default                        |
-| `MIN_MAX_IN_FLIGHT_PER_CONNECTION`     | `1`     | `maxInFlightPerConnection` minimum: one request at a time |
-| `DEFAULT_MAX_ARTIFACTS_WAITING`        | `100`   | Since 1.2: `maxArtifactsWaiting` default                  |
-| `DEFAULT_RETIRED_KEY_GRACE_SECONDS`    | `86400` | Since 1.2: `retiredKeyGraceSeconds` default: 1 day        |
-| `DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS`  | `300`   | Since 1.2: `keyChainMaxCacheSeconds` default              |
+| Constant                               | Value   | Setting                                                                              |
+| -------------------------------------- | ------- | ------------------------------------------------------------------------------------ |
+| `DEFAULT_MAX_ARTIFACT_SIZE_KB`         | `65536` | Since 1.2: `maxArtifactSizeKb` default: 64 MB (5 MB in 1.1)                          |
+| `MIN_MAX_ARTIFACT_SIZE_KB`             | `65536` | Since 1.2: `maxArtifactSizeKb` minimum: 64 MB, what every server takes (1 MB in 1.1) |
+| `DEFAULT_MAX_ARTIFACT_AGE_SECONDS`     | `300`   | `maxArtifactAgeSeconds` default: 5 minutes                                           |
+| `MIN_MAX_ARTIFACT_AGE_SECONDS`         | `60`    | `maxArtifactAgeSeconds` minimum: 1 minute                                            |
+| `DEFAULT_CONNECTION_TIMEOUT_MS`        | `30000` | `connectionTimeoutMs` default: 30 seconds                                            |
+| `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` | `32`    | `maxInFlightPerConnection` default                                                   |
+| `MIN_MAX_IN_FLIGHT_PER_CONNECTION`     | `1`     | `maxInFlightPerConnection` minimum: one request at a time                            |
+| `DEFAULT_MAX_ARTIFACTS_IN_FLIGHT`      | `2`     | Since 1.2: `maxArtifactsInFlight` default                                            |
+| `DEFAULT_MAX_ARTIFACTS_WAITING`        | `100`   | Since 1.2: `maxArtifactsWaiting` default                                             |
+| `DEFAULT_RETIRED_KEY_GRACE_SECONDS`    | `86400` | Since 1.2: `retiredKeyGraceSeconds` default: 1 day                                   |
+| `DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS`  | `300`   | Since 1.2: `keyChainMaxCacheSeconds` default                                         |
 
 Every server setting and field limit: [Limits](../protocol/specifications/limits.md).
 
@@ -2816,7 +2817,7 @@ Error constant for an artifact larger than the receiving server's limit (`maxArt
 **Properties:**
 
 - `code`: `'BTP_ERROR_ARTIFACT_TOO_LARGE'`
-- `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 5120 KB'`
+- `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 65536 KB'`
 
 ---
 

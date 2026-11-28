@@ -545,7 +545,7 @@ Every amount is a whole number in the **minor units** of its currency, as define
 So `{ "amount": 4997, "currency": "AUD" }` can only mean AUD 49.97. Whole numbers are used because decimal numbers are stored inexactly by computers (`0.1 + 0.2` is `0.30000000000000004`), which makes totals drift by a cent and lets two implementations disagree about an amount they both signed. This is how banks and payment systems carry money.
 
 - **totalAmount** is minor units.
-- **lineItems** cells are text or whole numbers. A money cell (unit price, tax, line total) is minor units in the invoice's currency. A value that needs more decimals than the currency has, such as a quantity or a unit rate of `0.2843`, is written as text.
+- **lineItems** cells are text or whole numbers. Since 1.2, in a `1.2.0` invoice or receipt, a column name and a text cell are at most 1,000 characters ([Line items](./limits.md#line-items)). A money cell (unit price, tax, line total) is minor units in the invoice's currency. A value that needs more decimals than the currency has, such as a quantity or a unit rate of `0.2843`, is written as text.
 - **BTPS never converts amounts.** It carries the whole number and the currency code. Showing `4997` as `49.97` is the platform's job, using ISO 4217's minor unit digits for the currency. `Intl.NumberFormat`'s display digits are not ISO 4217's and differ for some currencies (for example IDR and HUF), so they must not be used to convert.
 
 **Attachments:**
@@ -588,7 +588,7 @@ A `1.1.0` invoice, receipt, payslip or letter carries at most 10 attachments, as
 
 **Size:**
 
-Each receiving server sets the largest artifact it can accept: 5 MB unless it chooses otherwise (see [Server Requirements](./overview.md#server-requirements)). Attachments travel inside the artifact as base64, which is a third larger than the file itself, so a 5 MB artifact carries about 3.7 MB of files. When the files do not fit, send them in further documents that reference the first one (`follows`, see References) rather than in one large artifact.
+Each receiving server sets the largest artifact it can accept (see [Server Requirements](./overview.md#server-requirements)). Since 1.2, every server takes at least 64 MB, so an artifact within it is never refused for its size; a 1.1 server takes 5 MB unless it chooses otherwise. Attachments travel inside the document as base64, which is a third larger than the file itself, and an encrypted document is base64 again, so a 64 MB artifact carries about 30 MB of files once encrypted ([Artifact size](./limits.md#artifact-size)). When the files do not fit, send them in further documents that reference the first one (`follows`, see References) rather than in one large artifact.
 
 **References:**
 

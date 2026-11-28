@@ -32,6 +32,8 @@ This page is our recommendation for doing it safely: what changes for you, the o
 - [ ] The refusals for what 1.2 adds (event chains, details responses, agreement order, details request limits) are middleware you register.
 - [ ] Each arriving key is checked against its identity's key chain, from its host: a key rotated away is refused past `retiredKeyGraceSeconds` (`BTP_ERROR_KEY_RETIRED`), an expired one at once (`BTP_ERROR_KEY_REVOKED`). A key whose identity never rotated is checked by DNS, as in 1.1.
 - [ ] Rotating a key is a signed record in its chain, with rules for your DNS records and old private keys ([Rotating keys](#rotating-keys)).
+- [ ] Every server takes artifacts up to 64 MB (`maxArtifactSizeKb`, default and minimum 65536). A server that set a lower `maxArtifactSizeKb` now gets 64 MB, with a warning. A 1.1 server keeps its own 5 MB default, so to a 1.1 receiver stay within its limit.
+- [ ] The server reads 2 artifacts at once by default (`maxArtifactsInFlight`), and queues the rest. A busy server with many small artifacts raises it, or runs more instances.
 - [ ] A `1.2.0` document may carry 20 attachments of each type, and more where you set `maxAttachments`, on your server and on `decryptVerify` ([Attachments](../protocol/specifications/limits.md#attachments)). A `1.1.0` one still carries at most 10.
 - [ ] Three exports are removed: `BtpsServerSyncFactory` (`@btps/sdk/server/core`), and `InMemoryQueue` and `BTPSMessageQueue` (`@btps/sdk/server`).
 
