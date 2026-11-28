@@ -457,7 +457,6 @@ __metadata:
     lodash: "npm:^4.17.21"
     pkijs: "npm:^4.0.1"
     proper-lockfile: "npm:^4.1.2"
-    split2: "npm:^4.2.0"
     stream-json: "npm:3.9.0"
     zod: "npm:^3.25.67"
   bin:
@@ -6504,13 +6503,6 @@ __metadata:
   dependencies:
     memory-pager: "npm:^1.0.2"
   checksum: 10c0/248c6ff7b5e354735e1daac4059222a29c9d291dfcf265daf675d13515eeaac454cfcccd687c8d134f86698b39abd7ad4d7434f7272dd6f8e41a00f21aae4194
-  languageName: node
-  linkType: hard
-
-"split2@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "split2@npm:4.2.0"
-  checksum: 10c0/b292beb8ce9215f8c642bb68be6249c5a4c7f332fc8ecadae7be5cbdf1ea95addc95f0459ef2e7ad9d45fd1064698a097e4eb211c83e772b49bc0ee423e91534
   languageName: node
   linkType: hard
 
