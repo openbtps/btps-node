@@ -5,11 +5,18 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-/** The largest artifact a server can accept unless it sets `maxArtifactSizeKb`: 5 MB. */
-export const DEFAULT_MAX_ARTIFACT_SIZE_KB = 5120;
+/**
+ * The largest artifact a server can accept unless it sets `maxArtifactSizeKb`: since 1.2, 64 MB,
+ * the size every server takes (5 MB in 1.1).
+ */
+export const DEFAULT_MAX_ARTIFACT_SIZE_KB = 65536;
 
-/** The smallest limit a server may set: 1 MB. */
-export const MIN_MAX_ARTIFACT_SIZE_KB = 1024;
+/**
+ * Since 1.2, the smallest limit a server may set, and so what every server takes: 64 MB, about
+ * 30 MB of files once encoded and encrypted (1 MB in 1.1). A sender within it is never refused
+ * for its size.
+ */
+export const MIN_MAX_ARTIFACT_SIZE_KB = 65536;
 
 /**
  * The artifact size limit a server uses, in KB. A limit it cannot use as

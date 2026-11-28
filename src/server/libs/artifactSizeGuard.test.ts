@@ -17,25 +17,25 @@ describe('resolveMaxArtifactSizeKb', () => {
     vi.restoreAllMocks();
   });
 
-  it('uses 5120 KB when nothing is set, without a warning', () => {
+  it('uses 65536 KB (64 MB) when nothing is set, without a warning', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(resolveMaxArtifactSizeKb(undefined)).toBe(DEFAULT_MAX_ARTIFACT_SIZE_KB);
-    expect(DEFAULT_MAX_ARTIFACT_SIZE_KB).toBe(5120);
+    expect(DEFAULT_MAX_ARTIFACT_SIZE_KB).toBe(65536);
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('uses any limit from 1024 KB up as given, with no maximum', () => {
+  it('uses any limit from 65536 KB up as given, with no maximum', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(resolveMaxArtifactSizeKb(1024)).toBe(1024);
-    expect(resolveMaxArtifactSizeKb(2048)).toBe(2048);
+    expect(resolveMaxArtifactSizeKb(65536)).toBe(65536);
     expect(resolveMaxArtifactSizeKb(100 * 1024)).toBe(100 * 1024);
+    expect(resolveMaxArtifactSizeKb(220 * 1024)).toBe(220 * 1024);
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('warns and uses the 1024 KB minimum for a smaller limit', () => {
+  it('warns and uses the 65536 KB every server takes for a smaller limit', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(resolveMaxArtifactSizeKb(512)).toBe(MIN_MAX_ARTIFACT_SIZE_KB);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 1024 KB minimum'));
+    expect(resolveMaxArtifactSizeKb(5120)).toBe(MIN_MAX_ARTIFACT_SIZE_KB);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 65536 KB minimum'));
   });
 
   it('warns and uses the default for a value that is not a size', () => {

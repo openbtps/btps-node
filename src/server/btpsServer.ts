@@ -204,8 +204,8 @@ export class BtpsServer {
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
-  /** Since 1.2: places for artifacts across every connection; none without `maxArtifactsInFlight`. */
-  private readonly arrivals?: BtpsArrivalGate;
+  /** Since 1.2: places for artifacts across every connection (`maxArtifactsInFlight`). */
+  private readonly arrivals: BtpsArrivalGate;
   /** Since 1.2: how many attachments a document this server reads may carry, by type. */
   private readonly attachmentLimits: BTPResolvedAttachmentLimits;
   private readonly maxConsecutiveInvalidLines: number;
@@ -396,13 +396,13 @@ export class BtpsServer {
     // and the connection ends gently while the rest the peer sends is dropped, so the answer
     // reaches a peer that is still sending.
     const framer = BtpsLineFramer.utf8({ maxLineBytes: Math.floor(this.maxArtifactSizeKb * 1024) });
-    // With maxArtifactsInFlight, each line takes a place on the server before its first byte is
-    // read. Places held by this connection's lines, in the order the lines come out: each line
-    // gives up its own once answered. While one waits, nothing more is read: TCP holds the sender.
+    // Each line takes a place on the server (maxArtifactsInFlight) before its first byte is read.
+    // Places held by this connection's lines, in the order the lines come out: each line gives up
+    // its own once answered. While one waits, nothing more is read: TCP holds the sender.
     const places: BTPArrivalLeave[] = [];
     let stopWaiting: (() => void) | undefined;
-    const admit = (gate: BtpsArrivalGate): boolean | Promise<boolean> => {
-      const ticket = gate.enter();
+    const admit = (): boolean | Promise<boolean> => {
+      const ticket = this.arrivals.enter();
       if (ticket.state === 'full') return false;
       if (ticket.state === 'in') {
         places.push(ticket.leave);
@@ -427,7 +427,6 @@ export class BtpsServer {
       errorReq.error = error;
       this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
     };
-    const arrivals = this.arrivals;
     const stream = lineFramerStream(framer, {
       onOverflow: () => {
         // The line too large never comes out: its place, the last taken, is given up now.
@@ -439,7 +438,7 @@ export class BtpsServer {
           }),
         );
       },
-      admit: arrivals ? () => admit(arrivals) : undefined,
+      admit,
       // Every place taken and the queue full: this sender sends again later. A wait ended by the
       // connection closing is refused too, with no one left to answer.
       onRefused: () => {

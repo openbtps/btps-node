@@ -75,10 +75,12 @@ export const BTPS_FIELD_LIMITS = {
   // provider raises this one itself.
   documentAttachments: { standard: 20, ceiling: 1000 },
   references: 20,
-  // A row has no more cells than there may be columns.
+  // A row has no more cells than there may be columns. Since 1.2, under 1.2.0: a column's name and
+  // a text cell in characters.
   lineItems: {
     rows: 10000,
     columns: 50,
+    cell: 1000,
   },
   query: {
     in: 1000,

@@ -86,12 +86,13 @@ export interface BtpsServerOptions {
    * Since 1.2: how many artifacts the whole server may read and handle at once, over every
    * connection. An artifact takes a place from its first byte until it is answered; one that finds
    * none waits (see `maxArtifactsWaiting`) with nothing of it read, so it costs no memory. A whole
-   * number above 0; no limit when not given, as before. Size it by memory: about three times the
-   * largest artifact for each place.
+   * number above 0. Default 2: two artifacts of the 64 MB every server takes need about 380 MB.
+   * Size it by memory: about three times the largest artifact for each place. Raise it for more
+   * small artifacts at once, as a place is held until its artifact is answered, whatever its size.
    */
   maxArtifactsInFlight?: number;
   /**
-   * Since 1.2: with `maxArtifactsInFlight`, how many artifacts may wait for a place, in order of
+   * Since 1.2: how many artifacts may wait for a place (`maxArtifactsInFlight`), in order of
    * arrival, held back by TCP. The next one past it is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE`
    * (503) and its connection ends gently, for its sender to send again later. Default 100, minimum 0
    * (none waits).

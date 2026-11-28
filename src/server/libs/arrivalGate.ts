@@ -5,7 +5,14 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-/** Since 1.2: how many artifacts may wait for a place, once `maxArtifactsInFlight` is set, unless the server sets `maxArtifactsWaiting`. */
+/**
+ * Since 1.2: how many artifacts a server reads and handles at once unless it sets
+ * `maxArtifactsInFlight`. Two artifacts of the 64 MB every server takes need about 380 MB, so a
+ * server that sets nothing fits a 512 MB container.
+ */
+export const DEFAULT_MAX_ARTIFACTS_IN_FLIGHT = 2;
+
+/** Since 1.2: how many artifacts may wait for a place unless the server sets `maxArtifactsWaiting`. */
 export const DEFAULT_MAX_ARTIFACTS_WAITING = 100;
 
 /** A place taken: `leave()` gives it up, once; calling it again does nothing. */
@@ -87,23 +94,15 @@ export class BtpsArrivalGate {
 }
 
 /**
- * The gate a server uses: none when `maxArtifactsInFlight` is not set, so it takes as many at once
- * as arrive, as before. A value it cannot use never stops the server: it is warned about and
- * replaced by 1 (in flight), 0 (waiting), or the default (waiting, when not a whole number).
+ * The gate a server uses, `DEFAULT_MAX_ARTIFACTS_IN_FLIGHT` places when it sets none. A value it
+ * cannot use never stops the server: it is warned about and replaced by 1 (in flight), 0
+ * (waiting), or the default (waiting, when not a whole number).
  */
 export const resolveArrivalGate = (
   maxArtifactsInFlight: number | undefined,
   maxArtifactsWaiting: number | undefined,
-): BtpsArrivalGate | undefined => {
-  if (maxArtifactsInFlight === undefined) {
-    if (maxArtifactsWaiting !== undefined) {
-      console.warn(
-        '[BtpsServer] maxArtifactsWaiting is set without maxArtifactsInFlight; nothing waits until maxArtifactsInFlight is set',
-      );
-    }
-    return undefined;
-  }
-  let inFlight = maxArtifactsInFlight;
+): BtpsArrivalGate => {
+  let inFlight = maxArtifactsInFlight ?? DEFAULT_MAX_ARTIFACTS_IN_FLIGHT;
   if (!Number.isInteger(inFlight) || inFlight < 1) {
     console.warn(
       `[BtpsServer] maxArtifactsInFlight ${inFlight} is not a whole number above 0; using 1`,

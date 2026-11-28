@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   BtpsArrivalGate,
+  DEFAULT_MAX_ARTIFACTS_IN_FLIGHT,
   DEFAULT_MAX_ARTIFACTS_WAITING,
   resolveArrivalGate,
   type BTPArrivalLeave,
@@ -90,14 +91,20 @@ describe('BtpsArrivalGate', () => {
 describe('resolveArrivalGate', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('is none without maxArtifactsInFlight, as before', () => {
-    expect(resolveArrivalGate(undefined, undefined)).toBeUndefined();
+  it('gives 2 places and a queue of 100 when nothing is set', () => {
+    const gate = resolveArrivalGate(undefined, undefined);
+    expect(DEFAULT_MAX_ARTIFACTS_IN_FLIGHT).toBe(2);
+    expect(gate.enter().state).toBe('in');
+    expect(gate.enter().state).toBe('in');
+    expect(gate.enter().state).toBe('waiting');
   });
 
-  it('warns of maxArtifactsWaiting set alone', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    expect(resolveArrivalGate(undefined, 10)).toBeUndefined();
-    expect(warn).toHaveBeenCalledOnce();
+  it('queues as set behind the default places', () => {
+    const gate = resolveArrivalGate(undefined, 1);
+    gate.enter();
+    gate.enter();
+    expect(gate.enter().state).toBe('waiting');
+    expect(gate.enter().state).toBe('full');
   });
 
   it('waits the default when only maxArtifactsInFlight is set', () => {

@@ -20,7 +20,7 @@ export {
   DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION,
   MIN_MAX_IN_FLIGHT_PER_CONNECTION,
 } from './inFlightLimit.js';
-export { DEFAULT_MAX_ARTIFACTS_WAITING } from './arrivalGate.js';
+export { DEFAULT_MAX_ARTIFACTS_IN_FLIGHT, DEFAULT_MAX_ARTIFACTS_WAITING } from './arrivalGate.js';
 export * from './btpsFactory.js';
 export * from './btpsLightweightFactory.js';
 export * from './btpsRegistry.js';

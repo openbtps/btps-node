@@ -345,9 +345,18 @@ const LINE_ROLES = ['description', 'quantity', 'unitPrice', 'discount', 'tax', '
 /**
  * Line items whose `discount` cells, when a row has one, are amounts in minor
  * units of at least 0, and which may name what a column holds: each role names
- * one of `columns`, and each appears at most once.
+ * one of `columns`, and each appears at most once. Since 1.2, under 1.2.0, a
+ * column's name and a text cell are at most `lineItems.cell` characters.
  */
 const BtpDiscountedLineItemsSchema = BtpLineItemsSchema.extend({
+  columns: boundedArray(z.string().max(lineItems.cell), lineItems.columns),
+  rows: boundedArray(
+    boundedRecord(
+      z.union([z.string().max(lineItems.cell), z.number().int().safe()]),
+      lineItems.columns,
+    ),
+    lineItems.rows,
+  ),
   roles: boundedRecord(z.enum(LINE_ROLES), lineItems.columns).optional(),
 })
   .refine(
