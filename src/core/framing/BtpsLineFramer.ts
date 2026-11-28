@@ -74,6 +74,10 @@ export class BtpsLineFramer<T> implements BTPLineFramer<T> {
     return this.#overflowed;
   }
 
+  get delimiter(): number {
+    return this.#delimiter;
+  }
+
   push(chunk: Uint8Array): readonly T[] {
     if (this.#overflowed) return [];
     const lines: T[] = [];

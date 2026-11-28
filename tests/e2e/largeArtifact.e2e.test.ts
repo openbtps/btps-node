@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { createHash, randomBytes } from 'crypto';
 import type { BTPTransporterArtifact } from '../../src/core/server/types.js';
+import type { BtpsServerOptions } from '../../src/server/types.js';
 import {
   addUser,
   artifactFrom,
@@ -99,6 +100,87 @@ describe('a large artifact', () => {
       expect(received.attachments.map((one) => one.sha256)).toEqual(
         attachments.map((one) => one.sha256),
       );
+    },
+  );
+});
+
+// Journey: many large artifacts at once, to a server that reads only so many at a time. Each
+// takes a place before its first byte is read; the rest wait, held back by TCP, with nothing of
+// them in memory; past the queue, the next is told to send again later.
+describe('large artifacts arriving at once', () => {
+  const hosts: Provider[] = [];
+  let vendor: User;
+
+  /** A receiving provider with `limits`, trusting `vendor`, and one of its users. */
+  const receiver = async (domain: string, limits: Partial<BtpsServerOptions>) => {
+    const host = await startProvider(domain, {
+      server: { maxArtifactSizeKb: 64 * 1024, connectionTimeoutMs: 60_000, ...limits },
+    });
+    hosts.push(host);
+    const user = await addUser(host, 'pay');
+    await recordTrust(host.trustStore, vendor.identity, user.identity, 'accepted');
+    return { host, user };
+  };
+
+  /** `count` letters of two 10.5 MB PDFs each, about 38 MB on the wire, made before any is sent. */
+  const letters = (to: User, count: number) =>
+    Promise.all(
+      Array.from({ length: count }, () =>
+        artifactFrom(
+          vendor,
+          to.identity,
+          'BTPS_DOC',
+          letterDocument({ attachments: [pdf(), pdf()] }),
+        ),
+      ),
+    );
+
+  const codeOf = ({ response, error }: Awaited<ReturnType<typeof deliver>>) =>
+    response?.status?.code ?? (error as { code?: unknown } | undefined)?.code;
+
+  beforeAll(async () => {
+    const vendorHost = await startProvider('busy-vendor.test');
+    hosts.push(vendorHost);
+    vendor = await addUser(vendorHost, 'billing');
+  });
+
+  afterAll(() => hosts.forEach((host) => host.stop()));
+
+  it(
+    'reads one at a time, queues one, and tells the next to send again later; then takes it',
+    { timeout: 240_000 },
+    async () => {
+      const { host, user } = await receiver('busy-one.test', {
+        maxArtifactsInFlight: 1,
+        maxArtifactsWaiting: 1,
+      });
+      const sent = await letters(user, 4);
+
+      const answers = await Promise.all(sent.slice(0, 3).map((artifact) => deliver(artifact)));
+      const codes = answers.map(codeOf);
+      expect(codes.filter((code) => code === 200)).toHaveLength(2);
+      expect(codes.filter((code) => code === 503)).toHaveLength(1);
+
+      // Places free once answered: the one told to send again later is taken when it does.
+      expect(codeOf(await deliver(sent[codes.indexOf(503)]!))).toBe(200);
+      expect(codeOf(await deliver(sent[3]!))).toBe(200);
+      expect(host.inbox).toHaveLength(4);
+    },
+  );
+
+  it(
+    'delivers every one, a place at a time, when the queue holds them all',
+    { timeout: 240_000 },
+    async () => {
+      const { host, user } = await receiver('busy-queue.test', {
+        maxArtifactsInFlight: 1,
+        maxArtifactsWaiting: 10,
+      });
+      const sent = await letters(user, 4);
+
+      const answers = await Promise.all(sent.map((artifact) => deliver(artifact)));
+      expect(answers.map(codeOf)).toEqual([200, 200, 200, 200]);
+      expect(host.inbox.map((a) => a.id).sort()).toEqual(sent.map((a) => a.id).sort());
     },
   );
 });

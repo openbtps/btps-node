@@ -62,9 +62,66 @@ describe('lineFramerStream', () => {
       reset: vi.fn(),
       bufferedBytes: 0,
       overflowed: false,
+      delimiter: 0x0a,
     };
     const { lines } = await run(framer, ['abc', 'de']);
     expect(lines).toEqual(['3', '2']);
     expect(framer.end).toHaveBeenCalledOnce();
+  });
+
+  it('lets each line in before its first byte, once, however its bytes are cut', async () => {
+    const framer = BtpsLineFramer.utf8();
+    const admit = vi.fn(() => true);
+    const lines: string[] = [];
+    const stream = lineFramerStream(framer, { admit });
+    stream.on('data', (line: string) => lines.push(line));
+    stream.write(Buffer.from('{"a":1}\n{"b"'));
+    stream.write(Buffer.from(':2}\n\n{"c":3}\n'));
+    stream.end();
+    await new Promise((resolve) => stream.on('end', resolve));
+
+    expect(lines).toEqual(['{"a":1}', '{"b":2}', '', '{"c":3}']);
+    expect(admit).toHaveBeenCalledTimes(4);
+  });
+
+  it('reads nothing of a line while it waits to be let in', async () => {
+    const framer = BtpsLineFramer.utf8();
+    let letIn!: (ok: boolean) => void;
+    const admit = vi.fn(() => new Promise<boolean>((resolve) => (letIn = resolve)));
+    const lines: string[] = [];
+    const stream = lineFramerStream(framer, { admit });
+    stream.on('data', (line: string) => lines.push(line));
+    stream.write(Buffer.from('{"a":1}\n'));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(admit).toHaveBeenCalledOnce();
+    expect(framer.bufferedBytes).toBe(0);
+    expect(lines).toEqual([]);
+
+    letIn(true);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(lines).toEqual(['{"a":1}']);
+  });
+
+  it('tells once of a line refused, and drops it and every byte after it', async () => {
+    const onRefused = vi.fn();
+    const admit = vi.fn().mockReturnValueOnce(true).mockReturnValue(false);
+    const framer = BtpsLineFramer.utf8();
+    const lines: string[] = [];
+    await pipeline(
+      Readable.from([Buffer.from('first\nsecond'), Buffer.from(' half\nthird\n')]),
+      lineFramerStream(framer, { admit, onRefused }),
+      new Writable({
+        objectMode: true,
+        write(line: string, _encoding, callback) {
+          lines.push(line);
+          callback();
+        },
+      }),
+    );
+
+    expect(lines).toEqual(['first']);
+    expect(onRefused).toHaveBeenCalledOnce();
+    expect(admit).toHaveBeenCalledTimes(2);
   });
 });

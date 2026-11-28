@@ -24,6 +24,8 @@ export interface BTPLineFramer<T> {
   readonly bufferedBytes: number;
   /** Whether a line has passed the limit since the last `reset()`. */
   readonly overflowed: boolean;
+  /** The byte that ends a line. */
+  readonly delimiter: number;
 }
 
 /** Since 1.2: how a `BtpsLineFramer` frames, and what it makes of each line. */

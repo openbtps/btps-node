@@ -46,6 +46,7 @@ import {
   BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
   BTP_ERROR_DETAILS_NOT_HELD,
   BTP_ERROR_ARTIFACT_TOO_LARGE,
+  BTP_ERROR_TEMPORARILY_UNAVAILABLE,
 } from '@core/error/constant.js';
 import { BtpsLineFramer, lineFramerStream } from '@core/framing/index.js';
 import {
@@ -130,6 +131,11 @@ import {
   resolveMaxConsecutiveInvalidLines,
   resolveMaxInFlightPerConnection,
 } from './libs/inFlightLimit.js';
+import {
+  resolveArrivalGate,
+  type BTPArrivalLeave,
+  type BtpsArrivalGate,
+} from './libs/arrivalGate.js';
 import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
@@ -193,6 +199,8 @@ export class BtpsServer {
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
+  /** Since 1.2: places for artifacts across every connection; none without `maxArtifactsInFlight`. */
+  private readonly arrivals?: BtpsArrivalGate;
   private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
@@ -232,6 +240,7 @@ export class BtpsServer {
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
     );
+    this.arrivals = resolveArrivalGate(options.maxArtifactsInFlight, options.maxArtifactsWaiting);
     this.maxConsecutiveInvalidLines = resolveMaxConsecutiveInvalidLines(
       options.maxConsecutiveInvalidLines,
     );
@@ -379,16 +388,54 @@ export class BtpsServer {
     // and the connection ends gently while the rest the peer sends is dropped, so the answer
     // reaches a peer that is still sending.
     const framer = BtpsLineFramer.utf8({ maxLineBytes: Math.floor(this.maxArtifactSizeKb * 1024) });
+    // With maxArtifactsInFlight, each line takes a place on the server before its first byte is
+    // read. Places held by this connection's lines, in the order the lines come out: each line
+    // gives up its own once answered. While one waits, nothing more is read: TCP holds the sender.
+    const places: BTPArrivalLeave[] = [];
+    let stopWaiting: (() => void) | undefined;
+    const admit = (gate: BtpsArrivalGate): boolean | Promise<boolean> => {
+      const ticket = gate.enter();
+      if (ticket.state === 'full') return false;
+      if (ticket.state === 'in') {
+        places.push(ticket.leave);
+        return true;
+      }
+      stopWaiting = ticket.cancel;
+      return ticket.admitted.then((leave) => {
+        stopWaiting = undefined;
+        if (!leave) return false;
+        // A place that came as the connection closed goes straight to the next.
+        if (socket.destroyed) {
+          leave();
+          return false;
+        }
+        places.push(leave);
+        return true;
+      });
+    };
+    const endWith = (error: BTPErrorException) => {
+      const { reqCtx, resCtx } = createContexts();
+      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      errorReq.error = error;
+      this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
+    };
+    const arrivals = this.arrivals;
     const stream = lineFramerStream(framer, {
       onOverflow: () => {
-        const error = new BTPErrorException({
-          ...BTP_ERROR_ARTIFACT_TOO_LARGE,
-          message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${this.maxArtifactSizeKb} KB`,
-        });
-        const { reqCtx, resCtx } = createContexts();
-        const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
-        errorReq.error = error;
-        this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
+        // The line too large never comes out: its place, the last taken, is given up now.
+        places.pop()?.();
+        endWith(
+          new BTPErrorException({
+            ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+            message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${this.maxArtifactSizeKb} KB`,
+          }),
+        );
+      },
+      admit: arrivals ? () => admit(arrivals) : undefined,
+      // Every place taken and the queue full: this sender sends again later. A wait ended by the
+      // connection closing is refused too, with no one left to answer.
+      onRefused: () => {
+        if (!socket.destroyed) endWith(new BTPErrorException(BTP_ERROR_TEMPORARILY_UNAVAILABLE));
       },
     });
     socket.pipe(stream);
@@ -452,7 +499,8 @@ export class BtpsServer {
     let invalidInARow = 0;
 
     stream.on('data', async (line: string) => {
-      if (!line.trim()) return;
+      const leave = places.shift();
+      if (!line.trim()) return leave?.();
 
       const lineIdentity = createIdentityRef();
       const { reqCtx: parseReq, resCtx: parseRes } = createContexts(lineIdentity);
@@ -582,13 +630,15 @@ export class BtpsServer {
         // A line is in flight until its answer is written, signed or not, so the
         // in-flight limit also bounds answers still waiting to be signed.
         await this.answersOnSocket.get(socket);
+        leave?.();
         inFlight--;
         if (stream.isPaused() && !stream.destroyed) stream.resume();
       }
     });
 
     socket.setTimeout(this.connectionTimeoutMs, () => {
-      if (inFlight > 0) {
+      // Waiting for a place is the server's doing, not an idle sender's.
+      if (inFlight > 0 || stopWaiting) {
         socket.setTimeout(this.connectionTimeoutMs);
         return;
       }
@@ -626,6 +676,9 @@ export class BtpsServer {
 
     // Cleanup to avoid memory leaks and max listener warnings
     socket.on('close', () => {
+      // Lines read but never handled, and a wait, give their places to the next.
+      stopWaiting?.();
+      for (const leave of places.splice(0)) leave();
       socket.off('error', handleError);
       if (typeof stream.off === 'function') stream.off('error', handleError);
     });

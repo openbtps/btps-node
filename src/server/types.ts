@@ -81,6 +81,21 @@ export interface BtpsServerOptions {
   maxArtifactAgeSeconds?: number;
   /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written. Default 32, minimum 1. */
   maxInFlightPerConnection?: number;
+  /**
+   * Since 1.2: how many artifacts the whole server may read and handle at once, over every
+   * connection. An artifact takes a place from its first byte until it is answered; one that finds
+   * none waits (see `maxArtifactsWaiting`) with nothing of it read, so it costs no memory. A whole
+   * number above 0; no limit when not given, as before. Size it by memory: about three times the
+   * largest artifact for each place.
+   */
+  maxArtifactsInFlight?: number;
+  /**
+   * Since 1.2: with `maxArtifactsInFlight`, how many artifacts may wait for a place, in order of
+   * arrival, held back by TCP. The next one past it is answered `BTP_ERROR_TEMPORARILY_UNAVAILABLE`
+   * (503) and its connection ends gently, for its sender to send again later. Default 100, minimum 0
+   * (none waits).
+   */
+  maxArtifactsWaiting?: number;
   /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
   maxConsecutiveInvalidLines?: number;
   /** Since 1.2: how long, in seconds, a key its identity rotated away from as planned still signs for this server. Default 86400 (1 day). A key rotated with immediate expiry gets none. */
@@ -391,7 +406,13 @@ export interface BTPTemplate {
 }
 
 /** Since 1.2: what a line-item column holds. */
-export type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
+export type BTPLineRole =
+  | 'description'
+  | 'quantity'
+  | 'unitPrice'
+  | 'discount'
+  | 'tax'
+  | 'lineTotal';
 
 /** Since 1.2: a letter's or an agreement's sign-off. Decoration: it proves no agreement. */
 export type BTPSignatory = NonNullable<BTPLetterDoc['signatory']>;
