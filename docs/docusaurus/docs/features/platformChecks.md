@@ -115,11 +115,11 @@ return res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { ret
 A line is checked against the schema of the kind of artifact it is taken for, and nothing else, and every list is refused cheaply when it is too long, before its signature is checked. See [Limits](../protocol/specifications/limits.md).
 
 :::note Sizing a server for very large artifacts
-A server holds each artifact whole while it reads it, parses it and verifies its signature. At peak, its memory is several times the artifact's size for each such artifact arriving at once, and the work to read and verify an artifact grows with its size. Measured: a 187 MB signed and encrypted letter carrying ten 10.5 MB PDFs was delivered to a `BtpsServer` over TLS in 1.9 s, using 1.9 s of CPU (sender and server in one process), and the process peaked near 2 GB of memory.
+A server holds each artifact whole while it reads it, parses it and verifies its signature, so its memory grows with the size of each artifact arriving at once. Measured on the receiving server alone, over TLS: a 187 MB signed and encrypted letter carrying ten 10.5 MB PDFs was accepted in about 3 s, and the server's memory peaked about 510 to 600 MB above what it used before the letter arrived, about three times the artifact's size.
 
 - Keep the default `maxArtifactSizeKb` (5 MB) unless your platform needs more.
-- If you raise it to take artifacts of tens or hundreds of MB, such as letters or agreements with many files, give the server more memory and CPU. Size memory as (largest artifact size × a few) × how many such artifacts may arrive at once.
-- A small container, for example 0.25 vCPU and 512 MB, is fine at the default, but not for artifacts of 100 MB or more.
+- If you raise it, size the server's memory at about three times its largest artifact for each one that may arrive at once, on top of what it uses otherwise.
+- For example, ten 10 MB files make an artifact of about 190 MB, which needs about 600 MB for that artifact. A 512 MB container, fine at the default, is too small for it, while 1.5 to 2 GB takes one or two at once.
 
 This holds until chunked encryption comes in a later release: files will travel as separately encrypted parts, so no one artifact is held whole. To work out the limit itself, see [Large documents](../protocol/specifications/limits.md#large-documents).
 :::
